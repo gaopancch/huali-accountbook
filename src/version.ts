@@ -1,3 +1,3 @@
 // 应用版本信息
 // 每次部署时自动递增最后一位（如 1.0.0 -> 1.0.1）
-export const APP_VERSION = '1.0.0';
+export const APP_VERSION = '1.0.1';

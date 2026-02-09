@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>测试页面</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    h1 { color: #22c55e; }
+    .success { color: #22c55e; }
+    .error { color: #ef4444; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>✓ 静态测试页面加载成功</h1>
+    <p>如果你能看到这个页面，说明Netlify部署正常。</p>
+  </div>
+
+  <div class="card">
+    <h2>浏览器信息</h2>
+    <p><strong>User Agent:</strong> <span id="ua"></span></p>
+    <p><strong>平台:</strong> <span id="platform"></span></p>
+    <p><strong>语言:</strong> <span id="lang"></span></p>
+  </div>
+
+  <div class="card">
+    <h2>JavaScript 测试</h2>
+    <p id="js-test" class="error">JavaScript 未执行</p>
+  </div>
+
+  <div class="card">
+    <h2>返回主应用</h2>
+    <a href="/" style="color: #22c55e; text-decoration: none; font-weight: bold;">
+      → 点击返回记账宝主页
+    </a>
+  </div>
+
+  <script>
+    // 测试JavaScript是否正常执行
+    document.getElementById('js-test').innerHTML = '<span class="success">✓ JavaScript 执行正常</span>';
+    document.getElementById('ua').textContent = navigator.userAgent;
+    document.getElementById('platform').textContent = navigator.platform;
+    document.getElementById('lang').textContent = navigator.language;
+
+    // 测试localStorage
+    try {
+      localStorage.setItem('test', 'ok');
+      localStorage.removeItem('test');
+      document.getElementById('js-test').innerHTML += '<br><span class="success">✓ LocalStorage 可用</span>';
+    } catch(e) {
+      document.getElementById('js-test').innerHTML += '<br><span class="error">✗ LocalStorage 不可用: ' + e.message + '</span>';
+    }
+  </script>
+</body>
+</html>
