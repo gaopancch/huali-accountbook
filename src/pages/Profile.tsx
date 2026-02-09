@@ -5,6 +5,7 @@ import { collection, query, where, getDocs, addDoc, deleteDoc, doc } from 'fireb
 import { db } from '../firebase';
 import { Book, DEFAULT_INCOME_CATEGORIES, DEFAULT_EXPENSE_CATEGORIES, Record } from '../types';
 import { exportBookToExcel } from '../utils/exportExcel';
+import { APP_VERSION } from '../version';
 
 const Profile: React.FC = () => {
   const { currentUser, userProfile, logout, updateUserProfile, setCurrentBook } = useAuth();
@@ -382,6 +383,11 @@ const Profile: React.FC = () => {
             </div>
             <span className="text-gray-400">→</span>
           </button>
+        </div>
+
+        {/* Version Info */}
+        <div className="text-center text-gray-500 text-sm mb-4">
+          版本 {APP_VERSION}
         </div>
 
         {/* Logout */}
