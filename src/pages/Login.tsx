@@ -35,7 +35,14 @@ const Login: React.FC = () => {
 
       switch (err.code) {
         case 'auth/network-request-failed':
-          errorMessage += '网络连接失败。请检查您的网络连接，或尝试切换WiFi/移动数据。如果问题持续，可能是网络环境限制了Firebase访问。';
+          errorMessage += '网络连接失败。\n\n' +
+            '可能的原因：\n' +
+            '1. Firebase服务在中国大陆可能无法访问\n' +
+            '2. 您的网络环境限制了访问\n\n' +
+            '解决方法：\n' +
+            '• 尝试使用VPN或代理\n' +
+            '• 切换到其他网络环境\n' +
+            '• 联系管理员了解详情';
           break;
         case 'auth/invalid-email':
           errorMessage += '邮箱格式不正确';
@@ -101,7 +108,7 @@ const Login: React.FC = () => {
         <h2 className="text-xl font-semibold text-center text-gray-600 mb-6">登录</h2>
 
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4" style={{ whiteSpace: 'pre-line' }}>
             {error}
           </div>
         )}
