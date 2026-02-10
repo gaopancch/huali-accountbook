@@ -61,6 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     loadUser();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadUserProfile = async (uid: string) => {

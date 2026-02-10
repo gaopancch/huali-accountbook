@@ -11,13 +11,13 @@ const Statistics: React.FC = () => {
   const { currentUser, userProfile } = useAuth();
   const navigate = useNavigate();
   const [records, setRecords] = useState<RecordType[]>([]);
-  const [currentBook, setCurrentBook] = useState<Book | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     console.log('Statistics: useEffect triggered, currentBookId:', userProfile?.currentBookId);
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, selectedMonth, userProfile?.currentBookId]);
 
   const loadData = async () => {

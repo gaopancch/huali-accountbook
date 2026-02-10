@@ -26,6 +26,7 @@ const AddRecord: React.FC = () => {
     if (recordId) {
       loadRecord(recordId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, userProfile?.currentBookId, recordId]);
 
   const loadCurrentBook = async () => {
@@ -140,6 +141,7 @@ const AddRecord: React.FC = () => {
 
   useEffect(() => {
     setCategory(categories[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [type]);
 
   const handleSubmit = async (e: React.FormEvent) => {

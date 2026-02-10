@@ -25,7 +25,7 @@ export const authService = {
 
       // 检查用户是否存在
       console.log('4. 检查邮箱是否已注册...');
-      const { data: existingUser, error: checkError } = await supabase
+      const { data: existingUser } = await supabase
         .from('users')
         .select('*')
         .eq('email', email)

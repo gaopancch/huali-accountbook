@@ -7,7 +7,6 @@ import { Record as RecordType, Book } from '../types';
 const Home: React.FC = function() {
   const { currentUser, userProfile } = useAuth();
   const [records, setRecords] = useState<RecordType[]>([]);
-  const [books, setBooks] = useState<Book[]>([]);
   const [currentBook, setCurrentBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -27,6 +26,7 @@ const Home: React.FC = function() {
   useEffect(() => {
     console.log('Home: useEffect triggered, currentBookId:', userProfile?.currentBookId);
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, userProfile?.currentBookId]);
 
   const loadData = async () => {
