@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../firebase';
+import { supabase } from '../supabase';
 import { Record as RecordType, Book } from '../types';
 
 const Home: React.FC = () => {
@@ -21,6 +20,7 @@ const Home: React.FC = () => {
   const balance = income - expense;
 
   useEffect(() => {
+    console.log('Home: useEffect triggered, currentBookId:', userProfile?.currentBookId);
     loadData();
   }, [currentUser, userProfile?.currentBookId]);
 
@@ -28,23 +28,30 @@ const Home: React.FC = () => {
     if (!currentUser) return;
 
     try {
-      // Load books owned by user
-      const booksQuery = query(collection(db, 'books'), where('ownerId', '==', currentUser.uid));
-      const booksSnapshot = await getDocs(booksQuery);
-      const ownedBooks = booksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Book));
+      // Load all books where user is a member
+      const { data: allBooksData, error: booksError } = await supabase
+        .from('books')
+        .select('*')
+        .or(`owner_id.eq.${currentUser.uid},members.cs.{${currentUser.uid}}`);
 
-      // Load books shared with user
-      const allBooksQuery = query(collection(db, 'books'));
-      const allBooksSnapshot = await getDocs(allBooksQuery);
-      const sharedBooks = allBooksSnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() } as Book))
-        .filter(book => book.sharedWith?.includes(currentUser.uid));
+      if (booksError) throw booksError;
 
-      // Combine owned and shared books
-      const allBooks = [...ownedBooks, ...sharedBooks];
+      const allBooks = (allBooksData || []).map(book => ({
+        id: book.id,
+        name: book.name,
+        ownerId: book.owner_id,
+        ownerName: book.owner_name,
+        members: book.members || [],
+        isDefault: book.is_default,
+        incomeCategories: book.income_categories,
+        expenseCategories: book.expense_categories,
+        createdAt: new Date(book.created_at),
+        updatedAt: new Date(book.updated_at),
+      } as Book));
+
       setBooks(allBooks);
 
-      // Get current book based on user's selection or fallback to default
+      // Get current book
       let selectedBook = null;
       if (userProfile?.currentBookId) {
         selectedBook = allBooks.find(b => b.id === userProfile.currentBookId);
@@ -56,15 +63,27 @@ const Home: React.FC = () => {
 
       // Load records for current book
       if (selectedBook) {
-        const recordsQuery = query(
-          collection(db, 'records'),
-          where('bookId', '==', selectedBook.id)
-        );
-        const recordsSnapshot = await getDocs(recordsQuery);
-        const recordsData = recordsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RecordType));
-        // Sort by date in JavaScript
-        recordsData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        setRecords(recordsData);
+        const { data: recordsData, error: recordsError } = await supabase
+          .from('records')
+          .select('*')
+          .eq('book_id', selectedBook.id)
+          .order('date', { ascending: false });
+
+        if (recordsError) throw recordsError;
+
+        const records = (recordsData || []).map(record => ({
+          id: record.id,
+          bookId: record.book_id,
+          type: record.type,
+          category: record.category,
+          amount: record.amount,
+          remark: record.remark,
+          date: record.date,
+          createdAt: new Date(record.created_at),
+          updatedAt: new Date(record.updated_at),
+        } as RecordType));
+
+        setRecords(records);
       }
     } catch (error) {
       console.error('Error loading data:', error);

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { collection, query, where, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { supabase } from '../supabase';
 import { Book, DEFAULT_INCOME_CATEGORIES, DEFAULT_EXPENSE_CATEGORIES, Record } from '../types';
 import { exportBookToExcel } from '../utils/exportExcel';
 import { APP_VERSION } from '../version';
+import CryptoJS from 'crypto-js';
 
 const Profile: React.FC = () => {
   const { currentUser, userProfile, logout, updateUserProfile, setCurrentBook } = useAuth();
@@ -14,6 +14,8 @@ const Profile: React.FC = () => {
   const [showNameModal, setShowNameModal] = useState(false);
   const [showBookModal, setShowBookModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
   const [shareLink, setShareLink] = useState('');
   const [newName, setNewName] = useState('');
   const [newBookName, setNewBookName] = useState('');
@@ -26,30 +28,41 @@ const Profile: React.FC = () => {
     if (!currentUser) return;
 
     try {
-      // Load books owned by user
-      const booksQuery = query(collection(db, 'books'), where('ownerId', '==', currentUser.uid));
-      const booksSnapshot = await getDocs(booksQuery);
-      const ownedBooks = booksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Book));
+      // Load all books where user is a member
+      const { data: allBooksData, error: booksError } = await supabase
+        .from('books')
+        .select('*')
+        .or(`owner_id.eq.${currentUser.uid},members.cs.{${currentUser.uid}}`);
 
-      // Load books shared with user
-      const allBooksQuery = query(collection(db, 'books'));
-      const allBooksSnapshot = await getDocs(allBooksQuery);
-      const sharedBooks = allBooksSnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() } as Book))
-        .filter(book => book.sharedWith?.includes(currentUser.uid));
+      if (booksError) throw booksError;
 
-      // Combine owned and shared books
-      let allBooks = [...ownedBooks, ...sharedBooks];
+      const allBooks = (allBooksData || []).map(book => ({
+        id: book.id,
+        name: book.name,
+        ownerId: book.owner_id,
+        ownerName: book.owner_name,
+        members: book.members || [],
+        isDefault: book.is_default,
+        incomeCategories: book.income_categories || DEFAULT_INCOME_CATEGORIES,
+        expenseCategories: book.expense_categories || DEFAULT_EXPENSE_CATEGORIES,
+        createdAt: new Date(book.created_at),
+        updatedAt: new Date(book.updated_at),
+      } as Book));
 
       // Clean up duplicate default books - keep only one with records or the first one
+      const ownedBooks = allBooks.filter(b => b.ownerId === currentUser.uid);
       const defaultBooks = ownedBooks.filter(b => b.isDefault);
       if (defaultBooks.length > 1) {
         // Check which default books have records
         const booksWithRecords = await Promise.all(
           defaultBooks.map(async (book) => {
-            const recordsQuery = query(collection(db, 'records'), where('bookId', '==', book.id));
-            const recordsSnapshot = await getDocs(recordsQuery);
-            return { book, hasRecords: recordsSnapshot.size > 0 };
+            const { data: recordsData, error: recordsError } = await supabase
+              .from('records')
+              .select('id')
+              .eq('book_id', book.id);
+
+            if (recordsError) throw recordsError;
+            return { book, hasRecords: (recordsData || []).length > 0 };
           })
         );
 
@@ -59,25 +72,40 @@ const Profile: React.FC = () => {
         // Delete other default books
         for (const { book } of booksWithRecords) {
           if (book.id !== bookToKeep.id) {
-            await deleteDoc(doc(db, 'books', book.id));
-            // Also delete any records in this book
-            const recordsQuery = query(collection(db, 'records'), where('bookId', '==', book.id));
-            const recordsSnapshot = await getDocs(recordsQuery);
-            await Promise.all(recordsSnapshot.docs.map(d => deleteDoc(d.ref)));
+            // Delete all records in this book
+            await supabase.from('records').delete().eq('book_id', book.id);
+            // Delete the book
+            await supabase.from('books').delete().eq('id', book.id);
           }
         }
 
         // Reload books after cleanup
-        const updatedBooksQuery = query(collection(db, 'books'), where('ownerId', '==', currentUser.uid));
-        const updatedBooksSnapshot = await getDocs(updatedBooksQuery);
-        const updatedOwnedBooks = updatedBooksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Book));
-        allBooks = [...updatedOwnedBooks, ...sharedBooks];
+        const { data: updatedBooksData, error: updatedError } = await supabase
+          .from('books')
+          .select('*')
+          .or(`owner_id.eq.${currentUser.uid},members.cs.{${currentUser.uid}}`);
+
+        if (updatedError) throw updatedError;
+
+        const updatedBooks = (updatedBooksData || []).map(book => ({
+          id: book.id,
+          name: book.name,
+          ownerId: book.owner_id,
+          ownerName: book.owner_name,
+          members: book.members || [],
+          isDefault: book.is_default,
+          incomeCategories: book.income_categories || DEFAULT_INCOME_CATEGORIES,
+          expenseCategories: book.expense_categories || DEFAULT_EXPENSE_CATEGORIES,
+          createdAt: new Date(book.created_at),
+          updatedAt: new Date(book.updated_at),
+        } as Book));
+        setBooks(updatedBooks);
+      } else {
+        setBooks(allBooks);
       }
 
-      setBooks(allBooks);
-
       // Create default book if no owned books exist
-      if (ownedBooks.length === 0) {
+      if (ownedBooks.length === 0 && allBooks.length === 0) {
         await createDefaultBook();
         return; // createDefaultBook will set the current book
       }
@@ -96,20 +124,30 @@ const Profile: React.FC = () => {
     if (!currentUser || !userProfile) return;
 
     try {
-      const book: Omit<Book, 'id'> = {
+      const bookData = {
         name: `${userProfile.displayName} 的默认账本`,
-        ownerId: currentUser.uid,
-        ownerName: userProfile.displayName,
-        isDefault: true,
-        incomeCategories: DEFAULT_INCOME_CATEGORIES,
-        expenseCategories: DEFAULT_EXPENSE_CATEGORIES,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        owner_id: currentUser.uid,
+        owner_name: userProfile.displayName,
+        members: [currentUser.uid], // 创建者默认是成员
+        is_default: true,
+        income_categories: DEFAULT_INCOME_CATEGORIES,
+        expense_categories: DEFAULT_EXPENSE_CATEGORIES,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
 
-      const docRef = await addDoc(collection(db, 'books'), book);
+      const { data, error } = await supabase
+        .from('books')
+        .insert([bookData])
+        .select()
+        .single();
+
+      if (error) throw error;
+
       // 设置新创建的默认账本为当前账本
-      await setCurrentBook(docRef.id);
+      if (data && data.id) {
+        await setCurrentBook(data.id);
+      }
       await loadBooks();
     } catch (error) {
       console.error('Error creating default book:', error);
@@ -123,23 +161,33 @@ const Profile: React.FC = () => {
     }
 
     try {
-      const book: Omit<Book, 'id'> = {
+      const bookData = {
         name: newBookName.trim(),
-        ownerId: currentUser.uid,
-        ownerName: userProfile.displayName,
-        isDefault: false,
-        incomeCategories: DEFAULT_INCOME_CATEGORIES,
-        expenseCategories: DEFAULT_EXPENSE_CATEGORIES,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        owner_id: currentUser.uid,
+        owner_name: userProfile.displayName,
+        members: [currentUser.uid], // 创建者默认是成员
+        is_default: false,
+        income_categories: DEFAULT_INCOME_CATEGORIES,
+        expense_categories: DEFAULT_EXPENSE_CATEGORIES,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
 
-      const docRef = await addDoc(collection(db, 'books'), book);
+      const { data, error } = await supabase
+        .from('books')
+        .insert([bookData])
+        .select()
+        .single();
+
+      if (error) throw error;
+
       setNewBookName('');
       setShowBookModal(false);
       await loadBooks();
       // 切换到新创建的账本
-      await handleSwitchBook(docRef.id);
+      if (data && data.id) {
+        await handleSwitchBook(data.id);
+      }
       alert('账本创建成功!');
     } catch (error) {
       console.error('Error creating book:', error);
@@ -159,13 +207,11 @@ const Profile: React.FC = () => {
     }
 
     try {
-      // Delete book
-      await deleteDoc(doc(db, 'books', bookId));
-
       // Delete all records in this book
-      const recordsQuery = query(collection(db, 'records'), where('bookId', '==', bookId));
-      const recordsSnapshot = await getDocs(recordsQuery);
-      await Promise.all(recordsSnapshot.docs.map(doc => deleteDoc(doc.ref)));
+      await supabase.from('records').delete().eq('book_id', bookId);
+
+      // Delete book
+      await supabase.from('books').delete().eq('id', bookId);
 
       // If the deleted book was the current book, switch to another book
       if (userProfile?.currentBookId === bookId) {
@@ -212,9 +258,89 @@ const Profile: React.FC = () => {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    // 验证密码
+    if (!deletePassword.trim()) {
+      alert('请输入密码');
+      return;
+    }
+
+    try {
+      if (!currentUser) return;
+
+      // 1. 验证密码
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('uid', currentUser.uid)
+        .single();
+
+      if (userError || !userData) {
+        alert('用户不存在');
+        return;
+      }
+
+      const passwordHash = CryptoJS.SHA256(deletePassword).toString();
+
+      if (userData.password_hash !== passwordHash) {
+        alert('密码错误，请重新输入');
+        setDeletePassword('');
+        return;
+      }
+
+      // 显示处理中
+      const loadingMsg = '正在删除账号数据...';
+      console.log(loadingMsg);
+
+      // 2. 删除用户拥有的所有账本
+      const ownedBooks = books.filter(b => b.ownerId === currentUser.uid);
+
+      for (const book of ownedBooks) {
+        // 删除账本中的所有记录
+        await supabase.from('records').delete().eq('book_id', book.id);
+
+        // 删除账本
+        await supabase.from('books').delete().eq('id', book.id);
+      }
+
+      // 3. 从共享账本中移除当前用户
+      const sharedBooks = books.filter(b => b.ownerId !== currentUser.uid);
+      for (const book of sharedBooks) {
+        const updatedMembers = (book.members || []).filter(uid => uid !== currentUser.uid);
+        await supabase
+          .from('books')
+          .update({ members: updatedMembers })
+          .eq('id', book.id);
+      }
+
+      // 4. 删除用户资料
+      await supabase
+        .from('user_profiles')
+        .delete()
+        .eq('uid', currentUser.uid);
+
+      // 5. 删除users集合中的认证记录
+      await supabase
+        .from('users')
+        .delete()
+        .eq('uid', currentUser.uid);
+      console.log('✓ 已删除认证账号');
+
+      // 6. 退出登录并跳转
+      alert('账号已注销，所有数据已删除');
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      alert('注销失败，请重试');
+    }
+  };
+
   const handleSwitchBook = async (bookId: string) => {
     try {
+      console.log('Profile: Switching to book:', bookId);
       await setCurrentBook(bookId);
+      console.log('Profile: Book switched successfully');
       alert('账本切换成功!');
     } catch (error) {
       console.error('Error switching book:', error);
@@ -259,9 +385,24 @@ const Profile: React.FC = () => {
 
     try {
       // 查询当前账本的所有记录
-      const recordsQuery = query(collection(db, 'records'), where('bookId', '==', currentBook.id));
-      const recordsSnapshot = await getDocs(recordsQuery);
-      const records = recordsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Record));
+      const { data: recordsData, error } = await supabase
+        .from('records')
+        .select('*')
+        .eq('book_id', currentBook.id);
+
+      if (error) throw error;
+
+      const records = (recordsData || []).map(record => ({
+        id: record.id,
+        bookId: record.book_id,
+        type: record.type,
+        category: record.category,
+        amount: record.amount,
+        remark: record.remark,
+        date: record.date,
+        createdAt: new Date(record.created_at),
+        updatedAt: new Date(record.updated_at),
+      } as Record));
 
       if (records.length === 0) {
         alert('当前账本暂无记录');
@@ -393,9 +534,17 @@ const Profile: React.FC = () => {
         {/* Logout */}
         <button
           onClick={handleLogout}
-          className="w-full bg-red-500 text-white py-3 rounded-lg font-semibold hover:bg-red-600"
+          className="w-full bg-red-500 text-white py-3 rounded-lg font-semibold hover:bg-red-600 mb-3"
         >
           退出登录
+        </button>
+
+        {/* Delete Account */}
+        <button
+          onClick={() => setShowDeleteAccountModal(true)}
+          className="w-full bg-gray-800 text-white py-3 rounded-lg font-semibold hover:bg-gray-900"
+        >
+          注销账号
         </button>
       </div>
 
@@ -483,6 +632,58 @@ const Profile: React.FC = () => {
                 className="flex-1 py-2 bg-primary text-white rounded-lg"
               >
                 复制链接
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteAccountModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-bold mb-4 text-red-600">⚠️ 注销账号</h3>
+
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+              <p className="text-sm text-red-800 font-semibold mb-2">此操作无法撤销！将会：</p>
+              <ul className="text-sm text-red-700 list-disc list-inside space-y-1">
+                <li>删除你创建的所有账本（{books.filter(b => b.ownerId === currentUser?.uid).length} 个）</li>
+                <li>删除所有账本中的记录</li>
+                <li>从共享账本中移除你的访问权限</li>
+                <li>删除你的用户资料</li>
+                <li>删除你的登录账号（无法再使用此邮箱和密码登录）</li>
+              </ul>
+            </div>
+
+            <p className="text-sm text-gray-700 mb-2">
+              请输入你的<span className="font-bold text-red-600">登录密码</span>以确认注销：
+            </p>
+
+            <input
+              type="password"
+              value={deletePassword}
+              onChange={(e) => setDeletePassword(e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:border-red-500"
+              placeholder="输入登录密码"
+              autoFocus
+            />
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteAccountModal(false);
+                  setDeletePassword('');
+                }}
+                className="flex-1 py-3 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={!deletePassword.trim()}
+                className="flex-1 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              >
+                确认注销
               </button>
             </div>
           </div>

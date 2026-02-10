@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { collection, query, where, getDocs, addDoc, doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { supabase } from '../supabase';
 import { Book, DEFAULT_INCOME_CATEGORIES, DEFAULT_EXPENSE_CATEGORIES, Record as RecordType } from '../types';
 
 const AddRecord: React.FC = () => {
@@ -24,7 +23,6 @@ const AddRecord: React.FC = () => {
 
   useEffect(() => {
     loadCurrentBook();
-    // 如果有记录ID，则加载该记录进行编辑
     if (recordId) {
       loadRecord(recordId);
     }
@@ -34,29 +32,49 @@ const AddRecord: React.FC = () => {
     if (!currentUser) return;
 
     try {
-      // Load books owned by user
-      const booksQuery = query(collection(db, 'books'), where('ownerId', '==', currentUser.uid));
-      const booksSnapshot = await getDocs(booksQuery);
-      const ownedBooks = booksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Book));
+      console.log('AddRecord: Loading current book for user:', currentUser.uid);
+      console.log('AddRecord: User selected bookId:', userProfile?.currentBookId);
 
-      // Load books shared with user
-      const allBooksQuery = query(collection(db, 'books'));
-      const allBooksSnapshot = await getDocs(allBooksQuery);
-      const sharedBooks = allBooksSnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() } as Book))
-        .filter(book => book.sharedWith?.includes(currentUser.uid));
+      // Load all books where user is a member
+      const { data: allBooksData, error: booksError } = await supabase
+        .from('books')
+        .select('*')
+        .or(`owner_id.eq.${currentUser.uid},members.cs.{${currentUser.uid}}`);
 
-      // Combine owned and shared books
-      const allBooks = [...ownedBooks, ...sharedBooks];
+      if (booksError) throw booksError;
 
-      // Get current book based on user's selection or fallback to default
+      const allBooks = (allBooksData || []).map(book => ({
+        id: book.id,
+        name: book.name,
+        ownerId: book.owner_id,
+        ownerName: book.owner_name,
+        members: book.members || [],
+        isDefault: book.is_default,
+        incomeCategories: book.income_categories || DEFAULT_INCOME_CATEGORIES,
+        expenseCategories: book.expense_categories || DEFAULT_EXPENSE_CATEGORIES,
+        createdAt: new Date(book.created_at),
+        updatedAt: new Date(book.updated_at),
+      } as Book));
+
+      console.log('AddRecord: Found books:', allBooks.length);
+      console.log('AddRecord: Books:', allBooks.map(b => ({ id: b.id, name: b.name, ownerId: b.ownerId, members: b.members })));
+
       let selectedBook = null;
       if (userProfile?.currentBookId) {
         selectedBook = allBooks.find(b => b.id === userProfile.currentBookId);
+        console.log('AddRecord: Found selected book by ID:', selectedBook);
       }
       if (!selectedBook) {
         selectedBook = allBooks.find(b => b.isDefault && b.ownerId === currentUser.uid) || allBooks[0];
+        console.log('AddRecord: Using fallback book:', selectedBook);
       }
+
+      if (selectedBook) {
+        console.log('AddRecord: Setting current book:', { id: selectedBook.id, name: selectedBook.name });
+      } else {
+        console.error('AddRecord: No book found!');
+      }
+
       setCurrentBook(selectedBook);
       setCategory(categories[0]);
     } catch (error) {
@@ -66,9 +84,26 @@ const AddRecord: React.FC = () => {
 
   const loadRecord = async (id: string) => {
     try {
-      const recordDoc = await getDoc(doc(db, 'records', id));
-      if (recordDoc.exists()) {
-        const recordData = recordDoc.data() as RecordType;
+      const { data, error } = await supabase
+        .from('records')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        const recordData: RecordType = {
+          id: data.id,
+          bookId: data.book_id,
+          type: data.type,
+          category: data.category,
+          amount: data.amount,
+          remark: data.remark || '',
+          date: data.date,
+          createdAt: new Date(data.created_at),
+          updatedAt: new Date(data.updated_at),
+        };
         setType(recordData.type);
         setCategory(recordData.category);
         setAmount(recordData.amount.toString());
@@ -124,30 +159,42 @@ const AddRecord: React.FC = () => {
       setLoading(true);
 
       if (isEditMode && recordId) {
-        // 更新现有记录
-        const recordRef = doc(db, 'records', recordId);
-        await updateDoc(recordRef, {
-          type,
-          category,
-          amount: numAmount,
-          remark,
-          date,
-          updatedAt: new Date(),
-        });
+        console.log('AddRecord: Updating record:', recordId);
+        const { error } = await supabase
+          .from('records')
+          .update({
+            type,
+            category,
+            amount: numAmount,
+            remark,
+            date,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', recordId);
+
+        if (error) throw error;
+        console.log('AddRecord: Record updated successfully');
         alert('更新成功!');
       } else {
-        // 新增记录
-        const record = {
-          bookId: currentBook.id,
+        const recordData = {
+          book_id: currentBook.id,
           type,
           category,
           amount: numAmount,
           remark,
           date,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         };
-        await addDoc(collection(db, 'records'), record);
+        console.log('AddRecord: Creating new record:', recordData);
+        const { data, error } = await supabase
+          .from('records')
+          .insert([recordData])
+          .select()
+          .single();
+
+        if (error) throw error;
+        console.log('AddRecord: Record created successfully, result:', data);
         alert('记账成功!');
       }
 
@@ -167,7 +214,12 @@ const AddRecord: React.FC = () => {
 
     try {
       setLoading(true);
-      await deleteDoc(doc(db, 'records', recordId));
+      const { error } = await supabase
+        .from('records')
+        .delete()
+        .eq('id', recordId);
+
+      if (error) throw error;
       alert('删除成功!');
       navigate('/');
     } catch (error) {
