@@ -1,0 +1,6 @@
+{
+  "build_command": "npm run build",
+  "destination_dir": "build",
+  "preview_command": "npm start",
+  "preview_docker_image": "node:18"
+}
