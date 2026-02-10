@@ -5,11 +5,19 @@ import { supabase } from '../supabase';
 import { Record as RecordType, Book } from '../types';
 
 const Home: React.FC = function() {
-  const { currentUser, userProfile } = useAuth();
+  const recordsState = useState<RecordType[]>([]);
+  const setRecords = recordsState[1];
+  const currentBookState = useState<Book | null>(null);
+  const setCurrentBook = currentBookState[1];
+  const loadingState = useState(true);
+  const setLoading = loadingState[1];
+  const records = recordsState[0];
+  const currentBook = currentBookState[0];
+  const loading = loadingState[0];
+
+  const currentUser = useAuth().currentUser;
+  const userProfile = useAuth().userProfile;
   const navigate = useNavigate();
-  const [records, setRecords] = useState<RecordType[]>([]);
-  const [currentBook, setCurrentBook] = useState<Book | null>(null);
-  const [loading, setLoading] = useState(true);
 
   // Calculate totals
   var now = new Date();
@@ -24,17 +32,16 @@ const Home: React.FC = function() {
   var balance = income - expense;
 
   useEffect(function() {
-    console.log('Home: useEffect triggered, currentBookId:', userProfile?.currentBookId);
+    console.log('Home: useEffect triggered');
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser, userProfile?.currentBookId]);
+  }, [currentUser]);
 
   const loadData = async function() {
     if (!currentUser) return;
 
     try {
       // Load all books where user is a member or owner
-      // First get books where user is owner
       var { data: ownedBooks, error: ownedError } = await supabase
         .from('books')
         .select('*')
