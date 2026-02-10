@@ -14,12 +14,21 @@ import ShareBook from './pages/ShareBook';
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser, loading } = useAuth();
 
+  console.log('🛡️ ProtectedRoute: loading =', loading, ', currentUser =', currentUser ? currentUser.email : 'null');
+
   if (loading) {
+    console.log('🛡️ ProtectedRoute: 显示加载中...');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-xl">加载中...</div>
       </div>
     );
+  }
+
+  if (!currentUser) {
+    console.log('🛡️ ProtectedRoute: 未登录，重定向到 /login');
+  } else {
+    console.log('🛡️ ProtectedRoute: 已登录，渲染受保护内容');
   }
 
   return currentUser ? <>{children}</> : <Navigate to="/login" />;
@@ -29,12 +38,21 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser, loading } = useAuth();
 
+  console.log('🔓 PublicRoute: loading =', loading, ', currentUser =', currentUser ? currentUser.email : 'null');
+
   if (loading) {
+    console.log('🔓 PublicRoute: 显示加载中...');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-xl">加载中...</div>
       </div>
     );
+  }
+
+  if (currentUser) {
+    console.log('🔓 PublicRoute: 已登录，重定向到首页');
+  } else {
+    console.log('🔓 PublicRoute: 未登录，显示公开页面');
   }
 
   return currentUser ? <Navigate to="/" /> : <>{children}</>;

@@ -4,6 +4,11 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || '';
 
+console.log('===== Supabase 初始化 =====');
+console.log('URL:', supabaseUrl);
+console.log('AnonKey 存在:', !!supabaseAnonKey);
+console.log('当前域名:', window.location.origin);
+
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error('❌ Supabase配置缺失!');
   console.error('请在 .env 文件中设置:');
@@ -18,11 +23,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 });
 
-// 添加调试信息
-console.log('===== Supabase 初始化 =====');
-console.log('URL:', supabaseUrl);
-console.log('当前域名:', window.location.origin);
-console.log('✅ Supabase无域名限制,可以在任何域名使用!');
+console.log('✅ Supabase客户端已创建');
 console.log('==========================');
 
 export default supabase;

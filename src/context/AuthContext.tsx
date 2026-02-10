@@ -39,16 +39,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // 检查本地存储的登录状态
     const loadUser = async () => {
+      console.log('🔐 AuthContext: 开始加载用户信息');
       try {
         const user = authService.getCurrentUser();
+        console.log('🔐 AuthContext: 当前用户:', user ? user.email : '未登录');
         if (user) {
           setCurrentUser(user);
           // 加载用户资料
+          console.log('🔐 AuthContext: 开始加载用户资料');
           await loadUserProfile(user.uid);
+          console.log('🔐 AuthContext: 用户资料加载完成');
+        } else {
+          console.log('🔐 AuthContext: 无登录用户，跳过资料加载');
         }
       } catch (error) {
-        console.error('Load user error:', error);
+        console.error('🔐 AuthContext: 加载用户错误:', error);
       } finally {
+        console.log('🔐 AuthContext: 设置 loading = false');
         setLoading(false);
       }
     };
