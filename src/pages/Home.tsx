@@ -73,8 +73,6 @@ const Home: React.FC = function() {
         } as Book;
       });
 
-      setBooks(allBooks);
-
       // Get current book
       var selectedBook = null;
       if (userProfile && userProfile.currentBookId) {
