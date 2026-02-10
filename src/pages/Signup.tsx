@@ -2,30 +2,41 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const Login: React.FC = () => {
+const Signup: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { signup } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!email || !password) {
+    if (!email || !password || !confirmPassword || !displayName) {
       setError('请填写所有字段');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('两次输入的密码不一致');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('密码长度至少为6个字符');
       return;
     }
 
     try {
       setError('');
       setLoading(true);
-      await login(email, password);
+      await signup(email, password, displayName);
       navigate('/');
     } catch (err: any) {
-      console.error('Login error:', err);
-      setError('登录失败: ' + (err.message || '请检查邮箱和密码'));
+      setError('注册失败: ' + (err.message || '请稍后再试'));
     } finally {
       setLoading(false);
     }
@@ -35,15 +46,29 @@ const Login: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-400 to-blue-500 px-4">
       <div className="max-w-md w-full bg-white rounded-lg shadow-2xl p-8">
         <h1 className="text-3xl font-bold text-center text-gray-800 mb-8">记账宝</h1>
-        <h2 className="text-xl font-semibold text-center text-gray-600 mb-6">登录</h2>
+        <h2 className="text-xl font-semibold text-center text-gray-600 mb-6">注册</h2>
 
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4" style={{ whiteSpace: 'pre-line' }}>
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 mb-1">
+              昵称
+            </label>
+            <input
+              type="text"
+              id="displayName"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              placeholder="你的昵称"
+            />
+          </div>
+
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
               邮箱
@@ -68,7 +93,21 @@ const Login: React.FC = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="••••••••"
+              placeholder="至少6个字符"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+              确认密码
+            </label>
+            <input
+              type="password"
+              id="confirmPassword"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+              placeholder="再次输入密码"
             />
           </div>
 
@@ -77,14 +116,14 @@ const Login: React.FC = () => {
             disabled={loading}
             className="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {loading ? '登录中...' : '登录'}
+            {loading ? '注册中...' : '注册'}
           </button>
         </form>
 
         <p className="mt-6 text-center text-gray-600">
-          还没有账号?{' '}
-          <Link to="/signup" className="text-primary hover:underline font-semibold">
-            立即注册
+          已有账号?{' '}
+          <Link to="/login" className="text-primary hover:underline font-semibold">
+            立即登录
           </Link>
         </p>
       </div>
@@ -92,4 +131,4 @@ const Login: React.FC = () => {
   );
 };
 
-export default Login;
+export default Signup;

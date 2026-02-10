@@ -1,0 +1,18 @@
+# Netlify配置文件
+# 用于配置构建和部署设置
+
+[build]
+  # 构建命令
+  command = "npm run build"
+
+  # 构建输出目录
+  publish = "build"
+
+# 单页应用路由重定向规则
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# 设置环境变量（在Netlify控制台中配置）
+# 需要在 Netlify 网站设置 -> Environment variables 中添加所有 REACT_APP_ 开头的Firebase配置

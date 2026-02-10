@@ -35,13 +35,30 @@ const AddRecord: React.FC = () => {
       console.log('AddRecord: Loading current book for user:', currentUser.uid);
       console.log('AddRecord: User selected bookId:', userProfile?.currentBookId);
 
-      // Load all books where user is a member
-      const { data: allBooksData, error: booksError } = await supabase
+      // Load all books where user is a member or owner
+      // First get books where user is owner
+      const { data: ownedBooks, error: ownedError } = await supabase
         .from('books')
         .select('*')
-        .or(`owner_id.eq.${currentUser.uid},members.cs.{${currentUser.uid}}`);
+        .eq('owner_id', currentUser.uid);
 
-      if (booksError) throw booksError;
+      if (ownedError) throw ownedError;
+
+      // Then get books where user is in members array
+      const { data: sharedBooks, error: sharedError } = await supabase
+        .from('books')
+        .select('*')
+        .contains('members', [currentUser.uid]);
+
+      if (sharedError) throw sharedError;
+
+      // Combine and deduplicate
+      const bookIds = new Set();
+      const allBooksData = [...(ownedBooks || []), ...(sharedBooks || [])].filter(book => {
+        if (bookIds.has(book.id)) return false;
+        bookIds.add(book.id);
+        return true;
+      });
 
       const allBooks = (allBooksData || []).map(book => ({
         id: book.id,

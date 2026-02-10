@@ -28,13 +28,30 @@ const Profile: React.FC = () => {
     if (!currentUser) return;
 
     try {
-      // Load all books where user is a member
-      const { data: allBooksData, error: booksError } = await supabase
+      // Load all books where user is a member or owner
+      // First get books where user is owner
+      const { data: userOwnedBooks, error: ownedError } = await supabase
         .from('books')
         .select('*')
-        .or(`owner_id.eq.${currentUser.uid},members.cs.{${currentUser.uid}}`);
+        .eq('owner_id', currentUser.uid);
 
-      if (booksError) throw booksError;
+      if (ownedError) throw ownedError;
+
+      // Then get books where user is in members array
+      const { data: userSharedBooks, error: sharedError } = await supabase
+        .from('books')
+        .select('*')
+        .contains('members', [currentUser.uid]);
+
+      if (sharedError) throw sharedError;
+
+      // Combine and deduplicate
+      const bookIds = new Set();
+      const allBooksData = [...(userOwnedBooks || []), ...(userSharedBooks || [])].filter(book => {
+        if (bookIds.has(book.id)) return false;
+        bookIds.add(book.id);
+        return true;
+      });
 
       const allBooks = (allBooksData || []).map(book => ({
         id: book.id,
@@ -80,12 +97,26 @@ const Profile: React.FC = () => {
         }
 
         // Reload books after cleanup
-        const { data: updatedBooksData, error: updatedError } = await supabase
+        const { data: updatedOwnedBooks, error: updatedOwnedError } = await supabase
           .from('books')
           .select('*')
-          .or(`owner_id.eq.${currentUser.uid},members.cs.{${currentUser.uid}}`);
+          .eq('owner_id', currentUser.uid);
 
-        if (updatedError) throw updatedError;
+        if (updatedOwnedError) throw updatedOwnedError;
+
+        const { data: updatedSharedBooks, error: updatedSharedError } = await supabase
+          .from('books')
+          .select('*')
+          .contains('members', [currentUser.uid]);
+
+        if (updatedSharedError) throw updatedSharedError;
+
+        const updatedBookIds = new Set();
+        const updatedBooksData = [...(updatedOwnedBooks || []), ...(updatedSharedBooks || [])].filter(book => {
+          if (updatedBookIds.has(book.id)) return false;
+          updatedBookIds.add(book.id);
+          return true;
+        });
 
         const updatedBooks = (updatedBooksData || []).map(book => ({
           id: book.id,
@@ -124,10 +155,12 @@ const Profile: React.FC = () => {
     if (!currentUser || !userProfile) return;
 
     try {
+      const displayName = userProfile.displayName || currentUser.displayName || '用户';
+
       const bookData = {
-        name: `${userProfile.displayName} 的默认账本`,
+        name: `${displayName} 的默认账本`,
         owner_id: currentUser.uid,
-        owner_name: userProfile.displayName,
+        owner_name: displayName,
         members: [currentUser.uid], // 创建者默认是成员
         is_default: true,
         income_categories: DEFAULT_INCOME_CATEGORIES,
@@ -161,10 +194,12 @@ const Profile: React.FC = () => {
     }
 
     try {
+      const displayName = userProfile.displayName || currentUser.displayName || '用户';
+
       const bookData = {
         name: newBookName.trim(),
         owner_id: currentUser.uid,
-        owner_name: userProfile.displayName,
+        owner_name: displayName,
         members: [currentUser.uid], // 创建者默认是成员
         is_default: false,
         income_categories: DEFAULT_INCOME_CATEGORIES,
