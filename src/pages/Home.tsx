@@ -6,10 +6,10 @@ import { Record as RecordType, Book } from '../types';
 
 const Home: React.FC = function() {
   const { currentUser, userProfile } = useAuth();
+  const navigate = useNavigate();
   const [records, setRecords] = useState<RecordType[]>([]);
   const [currentBook, setCurrentBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
 
   // Calculate totals
   var now = new Date();
@@ -23,19 +23,19 @@ const Home: React.FC = function() {
   var expense = monthRecords.filter(function(r) { return r.type === 'expense'; }).reduce(function(sum, r) { return sum + r.amount; }, 0);
   var balance = income - expense;
 
-  useEffect(() => {
+  useEffect(function() {
     console.log('Home: useEffect triggered, currentBookId:', userProfile?.currentBookId);
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, userProfile?.currentBookId]);
 
-  const loadData = async () => {
+  const loadData = async function() {
     if (!currentUser) return;
 
     try {
       // Load all books where user is a member or owner
       // First get books where user is owner
-      const { data: ownedBooks, error: ownedError } = await supabase
+      var { data: ownedBooks, error: ownedError } = await supabase
         .from('books')
         .select('*')
         .eq('owner_id', currentUser.uid);
@@ -43,7 +43,7 @@ const Home: React.FC = function() {
       if (ownedError) throw ownedError;
 
       // Then get books where user is in members array
-      const { data: sharedBooks, error: sharedError } = await supabase
+      var { data: sharedBooks, error: sharedError } = await supabase
         .from('books')
         .select('*')
         .contains('members', [currentUser.uid]);
@@ -58,7 +58,7 @@ const Home: React.FC = function() {
         return true;
       });
 
-      const allBooks = (allBooksData || []).map(function(book) {
+      var allBooks = (allBooksData || []).map(function(book) {
         return {
           id: book.id,
           name: book.name,
@@ -81,11 +81,12 @@ const Home: React.FC = function() {
       if (!selectedBook) {
         selectedBook = allBooks.find(function(b) { return b.isDefault && b.ownerId === currentUser.uid; }) || allBooks[0];
       }
-      setCurrentBook(selectedBook);
 
-      // Load records for current book
       if (selectedBook) {
-        const { data: recordsData, error: recordsError } = await supabase
+        setCurrentBook(selectedBook);
+
+        // Load records for current book
+        var { data: recordsData, error: recordsError } = await supabase
           .from('records')
           .select('*')
           .eq('book_id', selectedBook.id)
@@ -93,7 +94,7 @@ const Home: React.FC = function() {
 
         if (recordsError) throw recordsError;
 
-        const records = (recordsData || []).map(function(record) {
+        var records = (recordsData || []).map(function(record) {
           return {
             id: record.id,
             bookId: record.book_id,
