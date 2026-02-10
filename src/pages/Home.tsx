@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabase';
 import { Record as RecordType, Book } from '../types';
 
-const Home: React.FC = () => {
+const Home: React.FC = function() {
   const { currentUser, userProfile } = useAuth();
   const [records, setRecords] = useState<RecordType[]>([]);
   const [books, setBooks] = useState<Book[]>([]);
@@ -13,11 +13,16 @@ const Home: React.FC = () => {
   const navigate = useNavigate();
 
   // Calculate totals
-  const currentMonth = new Date().toISOString().slice(0, 7);
-  const monthRecords = records.filter(r => r.date.startsWith(currentMonth));
-  const income = monthRecords.filter(r => r.type === 'income').reduce((sum, r) => sum + r.amount, 0);
-  const expense = monthRecords.filter(r => r.type === 'expense').reduce((sum, r) => sum + r.amount, 0);
-  const balance = income - expense;
+  var now = new Date();
+  var year = now.getFullYear();
+  var month = now.getMonth() + 1;
+  var monthStr = month < 10 ? '0' + month : '' + month;
+  var currentMonth = year + '-' + monthStr;
+
+  var monthRecords = records.filter(function(r) { return r.date.indexOf(currentMonth) === 0; });
+  var income = monthRecords.filter(function(r) { return r.type === 'income'; }).reduce(function(sum, r) { return sum + r.amount; }, 0);
+  var expense = monthRecords.filter(function(r) { return r.type === 'expense'; }).reduce(function(sum, r) { return sum + r.amount; }, 0);
+  var balance = income - expense;
 
   useEffect(() => {
     console.log('Home: useEffect triggered, currentBookId:', userProfile?.currentBookId);
@@ -46,35 +51,37 @@ const Home: React.FC = () => {
       if (sharedError) throw sharedError;
 
       // Combine and deduplicate
-      const bookIds = new Set();
-      const allBooksData = [...(ownedBooks || []), ...(sharedBooks || [])].filter(book => {
-        if (bookIds.has(book.id)) return false;
-        bookIds.add(book.id);
+      var bookIds = {};
+      var allBooksData = [...(ownedBooks || []), ...(sharedBooks || [])].filter(function(book) {
+        if ((bookIds as any)[book.id]) return false;
+        (bookIds as any)[book.id] = true;
         return true;
       });
 
-      const allBooks = (allBooksData || []).map(book => ({
-        id: book.id,
-        name: book.name,
-        ownerId: book.owner_id,
-        ownerName: book.owner_name,
-        members: book.members || [],
-        isDefault: book.is_default,
-        incomeCategories: book.income_categories,
-        expenseCategories: book.expense_categories,
-        createdAt: new Date(book.created_at),
-        updatedAt: new Date(book.updated_at),
-      } as Book));
+      const allBooks = (allBooksData || []).map(function(book) {
+        return {
+          id: book.id,
+          name: book.name,
+          ownerId: book.owner_id,
+          ownerName: book.owner_name,
+          members: book.members || [],
+          isDefault: book.is_default,
+          incomeCategories: book.income_categories,
+          expenseCategories: book.expense_categories,
+          createdAt: new Date(book.created_at),
+          updatedAt: new Date(book.updated_at),
+        } as Book;
+      });
 
       setBooks(allBooks);
 
       // Get current book
-      let selectedBook = null;
-      if (userProfile?.currentBookId) {
-        selectedBook = allBooks.find(b => b.id === userProfile.currentBookId);
+      var selectedBook = null;
+      if (userProfile && userProfile.currentBookId) {
+        selectedBook = allBooks.find(function(b) { return b.id === userProfile.currentBookId; });
       }
       if (!selectedBook) {
-        selectedBook = allBooks.find(b => b.isDefault && b.ownerId === currentUser.uid) || allBooks[0];
+        selectedBook = allBooks.find(function(b) { return b.isDefault && b.ownerId === currentUser.uid; }) || allBooks[0];
       }
       setCurrentBook(selectedBook);
 
@@ -88,17 +95,19 @@ const Home: React.FC = () => {
 
         if (recordsError) throw recordsError;
 
-        const records = (recordsData || []).map(record => ({
-          id: record.id,
-          bookId: record.book_id,
-          type: record.type,
-          category: record.category,
-          amount: record.amount,
-          remark: record.remark,
-          date: record.date,
-          createdAt: new Date(record.created_at),
-          updatedAt: new Date(record.updated_at),
-        } as RecordType));
+        const records = (recordsData || []).map(function(record) {
+          return {
+            id: record.id,
+            bookId: record.book_id,
+            type: record.type,
+            category: record.category,
+            amount: record.amount,
+            remark: record.remark,
+            date: record.date,
+            createdAt: new Date(record.created_at),
+            updatedAt: new Date(record.updated_at),
+          } as RecordType;
+        });
 
         setRecords(records);
       }
@@ -110,14 +119,14 @@ const Home: React.FC = () => {
   };
 
   // Group records by month
-  const groupedRecords = records.reduce((groups, record) => {
-    const month = record.date.slice(0, 7);
-    if (!groups[month]) {
-      groups[month] = [];
+  var groupedRecords = records.reduce(function(groups, record) {
+    var month = record.date.substring(0, 7);
+    if (!(groups as any)[month]) {
+      (groups as any)[month] = [];
     }
-    groups[month].push(record);
+    (groups as any)[month].push(record);
     return groups;
-  }, {} as Record<string, RecordType[]>);
+  }, {});
 
   if (loading) {
     return (
@@ -132,9 +141,9 @@ const Home: React.FC = () => {
       {/* Header */}
       <div className="bg-gradient-to-r from-primary to-green-600 text-white p-6 rounded-b-3xl shadow-lg">
         <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold">你好, {userProfile?.displayName}</h1>
+          <h1 className="text-2xl font-bold">你好, {userProfile ? userProfile.displayName : ''}</h1>
           <button
-            onClick={() => navigate('/profile')}
+            onClick={function() { navigate('/profile'); }}
             className="text-sm bg-white bg-opacity-20 px-4 py-2 rounded-full hover:bg-opacity-30"
           >
             我的
@@ -143,7 +152,7 @@ const Home: React.FC = () => {
 
         <div className="bg-white bg-opacity-20 rounded-2xl p-4">
           <div className="flex justify-between items-center mb-2">
-            <span>{currentBook?.name || '默认账本'}</span>
+            <span>{currentBook ? currentBook.name : '默认账本'}</span>
             <span>{new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' })}</span>
           </div>
 
@@ -172,34 +181,42 @@ const Home: React.FC = () => {
             <p className="text-sm mt-2">点击下方 + 按钮开始记账</p>
           </div>
         ) : (
-          Object.entries(groupedRecords).map(([month, monthRecords]) => (
-            <div key={month} className="mb-6">
-              <h3 className="text-gray-600 font-semibold mb-2">{month}</h3>
-              <div className="space-y-2">
-                {monthRecords.map(record => (
-                  <div
-                    key={record.id}
-                    className="bg-white rounded-lg p-4 shadow-sm flex justify-between items-center cursor-pointer hover:bg-gray-50"
-                    onClick={() => navigate(`/add-record?id=${record.id}`)}
-                  >
-                    <div className="flex-1">
-                      <div className="font-semibold">{record.category}</div>
-                      <div className="text-sm text-gray-500">
-                        {record.remark} · {record.date}
-                      </div>
-                    </div>
-                    <div
-                      className={`text-lg font-bold ${
-                        record.type === 'income' ? 'text-income' : 'text-expense'
-                      }`}
-                    >
-                      {record.type === 'income' ? '+' : '-'}¥{record.amount.toFixed(2)}
-                    </div>
-                  </div>
-                ))}
+          Object.entries(groupedRecords).map(function(entry) {
+            var month = entry[0];
+            var monthRecords = entry[1] as RecordType[];
+            return (
+              <div key={month} className="mb-6">
+                <h3 className="text-gray-600 font-semibold mb-2">{month}</h3>
+                <div className="space-y-2">
+                  {
+                    monthRecords.map(function(record) {
+                      var typeClass = record.type === 'income' ? 'text-income' : 'text-expense';
+                      var typePrefix = record.type === 'income' ? '+' : '-';
+                      return (
+                        <div
+                          key={record.id}
+                          className="bg-white rounded-lg p-4 shadow-sm flex justify-between items-center cursor-pointer hover:bg-gray-50"
+                          onClick={function() { navigate('/add-record?id=' + record.id); }}
+                        >
+                          <div className="flex-1">
+                            <div className="font-semibold">{record.category}</div>
+                            <div className="text-sm text-gray-500">
+                              {record.remark} · {record.date}
+                            </div>
+                          </div>
+                          <div
+                            className={'text-lg font-bold ' + typeClass}
+                          >
+                            {typePrefix}¥{record.amount.toFixed(2)}
+                          </div>
+                        </div>
+                      );
+                    })
+                  }
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -208,21 +225,21 @@ const Home: React.FC = () => {
         <div className="max-w-2xl mx-auto px-4 py-2">
           <div className="flex justify-around items-center">
           <button
-            onClick={() => navigate('/')}
+            onClick={function() { navigate('/'); }}
             className="flex flex-col items-center py-2 text-primary"
           >
             <span>首页</span>
           </button>
 
           <button
-            onClick={() => navigate('/add-record')}
+            onClick={function() { navigate('/add-record'); }}
             className="bg-primary text-white rounded-full w-14 h-14 flex items-center justify-center text-3xl -mt-6 shadow-lg"
           >
             +
           </button>
 
           <button
-            onClick={() => navigate('/statistics')}
+            onClick={function() { navigate('/statistics'); }}
             className="flex flex-col items-center py-2 text-gray-600"
           >
             <span>统计</span>
