@@ -63,24 +63,8 @@
         margin-top: 8px;
       }
 
-      .app-loading-debug {
-        position: fixed;
-        bottom: 20px;
-        left: 20px;
-        right: 20px;
-        background: rgba(0, 0, 0, 0.8);
-        color: #00ff00;
-        padding: 15px;
-        border-radius: 8px;
-        font-family: monospace;
-        font-size: 12px;
-        line-height: 1.5;
-        display: none;
-        max-height: 200px;
-        overflow-y: auto;
-      }
-
-      .app-error {
+      /* Unsupported browser warning */
+      .browser-unsupported {
         display: none;
         flex-direction: column;
         justify-content: center;
@@ -92,38 +76,68 @@
         text-align: center;
       }
 
-      .app-error-icon {
+      .browser-unsupported-icon {
         font-size: 60px;
         margin-bottom: 20px;
       }
 
-      .app-error-title {
+      .browser-unsupported-title {
         font-size: 24px;
         font-weight: bold;
         color: #333;
         margin-bottom: 10px;
       }
 
-      .app-error-message {
+      .browser-unsupported-message {
         font-size: 16px;
         color: #666;
-        margin-bottom: 20px;
+        margin-bottom: 10px;
+        padding: 0 20px;
       }
 
-      .app-error-button {
+      .browser-unsupported-useragent {
+        font-size: 12px;
+        color: #999;
+        margin: 20px 0;
+        padding: 10px;
+        background: #e5e5e5;
+        border-radius: 4px;
+        max-width: 90%;
+        word-break: break-all;
+      }
+
+      .browser-unsupported-link {
+        display: inline-block;
         background: #07c160;
         color: white;
-        border: none;
+        text-decoration: none;
         padding: 12px 24px;
         border-radius: 8px;
         font-size: 16px;
-        cursor: pointer;
+        margin: 10px 5px;
+      }
+
+      .browser-supported-browsers {
+        font-size: 14px;
+        color: #666;
+        margin-top: 20px;
+      }
+
+      .browser-supported-browsers span {
+        display: inline-block;
         margin: 5px;
+        padding: 5px 10px;
+        background: #e5e5e5;
+        border-radius: 4px;
       }
     </style>
   </head>
   <body>
     <noscript>您需要启用 JavaScript 才能运行此应用。</noscript>
+
+    <!-- Browser compatibility check -->
+    <div id="browser-warning" class="browser-unsupported"></div>
+
     <div id="root">
       <div class="app-loading">
         <div class="app-loading-spinner"></div>
@@ -132,96 +146,61 @@
       </div>
     </div>
 
-    <div id="app-error" class="app-error">
-      <div class="app-error-icon">⚠️</div>
-      <div class="app-error-title">应用加载失败</div>
-      <div class="app-error-message" id="error-message">JavaScript 加载失败，请检查网络连接</div>
-      <button class="app-error-button" onclick="window.location.reload()">重新加载</button>
-      <button class="app-error-button" onclick="localStorage.clear(); window.location.reload()">清除数据并重新加载</button>
-    </div>
-
-    <div id="debug-info" class="app-loading-debug"></div>
-
     <script>
-      // Debug logger
-      var debugLog = [];
-      function log(msg) {
-        var timestamp = new Date().toISOString().split('T')[1];
-        debugLog.push(timestamp + ' - ' + msg);
-        console.log(msg);
+      // Browser compatibility check
+      (function checkBrowserSupport() {
+        var ua = navigator.userAgent;
+        var isSupported = true;
+        var reason = '';
 
-        // Show debug info after 3 seconds
-        setTimeout(function() {
-          var debugDiv = document.getElementById('debug-info');
-          if (debugDiv) {
-            debugDiv.style.display = 'block';
-            debugDiv.innerHTML = debugLog.join('<br>');
+        // Check for required features
+        var requiredFeatures = {
+          'Promise': typeof Promise !== 'undefined',
+          'async/await': (function() {
+            try {
+              return eval('(async function(){})()') instanceof Promise;
+            } catch(e) { return false; }
+          })(),
+          'Array.includes': Array.prototype.includes !== undefined,
+          'String.includes': String.prototype.includes !== undefined,
+          'Object.assign': Object.assign !== undefined,
+          'Object.entries': Object.entries !== undefined,
+          'Array.from': Array.from !== undefined
+        };
+
+        var missingFeatures = Object.keys(requiredFeatures).filter(function(f) { return !requiredFeatures[f]; });
+
+        if (missingFeatures.length > 0) {
+          isSupported = false;
+          reason = '浏览器不支持 ' + missingFeatures.join(', ');
+        }
+
+        // Check Chrome version (Chrome 97+ required for React 18)
+        var chromeVersion = ua.match(/Chrome\/(\d+)/);
+        if (chromeVersion) {
+          var version = parseInt(chromeVersion[1]);
+          if (version < 90) {
+            isSupported = false;
+            reason = 'Chrome 版本过低 (当前: ' + version + '，需要: 90+)';
           }
-        }, 3000);
-      }
+        }
 
-      log('📱 页面开始加载');
-      log('🌐 User Agent: ' + navigator.userAgent);
-      log('📍 Location: ' + window.location.href);
-
-      // Check if JavaScript is working
-      log('✅ JavaScript 正常运行');
-
-      // Timeout to show error if app doesn't load
-      var loadTimeout = setTimeout(function() {
-        log('❌ 应用加载超时 (10秒)');
-        var rootDiv = document.getElementById('root');
-        var errorDiv = document.getElementById('app-error');
-        if (rootDiv && errorDiv) {
-          // Check if React has mounted
-          var hasReactRoot = rootDiv.innerHTML !== rootDiv.innerHTML.replace('app-loading', 'xxx');
-          if (hasReactRoot) {
-            log('⚠️ 应用仍在加载中...');
-            document.getElementById('error-message').textContent = '应用加载时间较长，请耐心等待或检查网络连接';
-          } else {
-            log('❌ React 未能挂载');
-            document.getElementById('error-message').textContent = 'JavaScript 加载失败，请刷新页面或清除浏览器缓存后重试';
-          }
+        // Show warning if not supported
+        if (!isSupported) {
+          var rootDiv = document.getElementById('root');
+          var warningDiv = document.getElementById('browser-warning');
           rootDiv.style.display = 'none';
-          errorDiv.style.display = 'flex';
+          warningDiv.style.display = 'flex';
+          warningDiv.innerHTML =
+            '<div class="browser-unsupported-icon">⚠️</div>' +
+            '<div class="browser-unsupported-title">您的浏览器不支持此应用</div>' +
+            '<div class="browser-unsupported-message">' + reason + '</div>' +
+            '<div class="browser-unsupported-message">请使用以下浏览器之一访问：</div>' +
+            '<div><a href="https://www.google.com/chrome/" class="browser-unsupported-link" target="_blank">Chrome 浏览器</a></div>' +
+            '<div class="browser-supported-browsers">支持的浏览器：<span>Chrome 90+</span><span>Edge 90+</span><span>Firefox 88+</span></div>' +
+            '<div class="browser-unsupported-useragent">User Agent: ' + ua + '</div>';
         }
-      }, 10000); // 10 seconds timeout
-
-      // Clear timeout when React mounts
-      var observer = new MutationObserver(function(mutations) {
-        mutations.forEach(function(mutation) {
-          if (mutation.type === 'childList' || mutation.type === 'subtree') {
-            var loading = document.querySelector('.app-loading');
-            if (!loading || loading.style.display === 'none') {
-              log('✅ React 应用已挂载');
-              clearTimeout(loadTimeout);
-              observer.disconnect();
-            }
-          }
-        });
-      });
-
-      var rootElement = document.getElementById('root');
-      if (rootElement) {
-        observer.observe(rootElement, { childList: true, subtree: true });
-        log('👀 开始监听 React 挂载');
-      }
-
-      // Log when scripts start loading
-      window.addEventListener('DOMContentLoaded', function() {
-        log('📄 DOM 内容已加载');
-      });
-
-      window.addEventListener('load', function() {
-        log('🎉 页面资源全部加载完成');
-      });
-
-      // Catch script load errors
-      window.addEventListener('error', function(e) {
-        if (e.target.tagName === 'SCRIPT') {
-          log('❌ 脚本加载失败: ' + e.target.src);
-        }
-      }, true);
+      })();
     </script>
   </body>
 </html>
