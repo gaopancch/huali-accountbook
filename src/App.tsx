@@ -9,8 +9,6 @@ import AddRecord from './pages/AddRecord';
 import Statistics from './pages/Statistics';
 import Profile from './pages/Profile';
 import ShareBook from './pages/ShareBook';
-import TestPage from './pages/TestPage';
-import TestCloudBase from './pages/TestCloudBase';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -96,10 +94,6 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-
-      {/* Test Pages - Public routes for debugging */}
-      <Route path="/test" element={<TestPage />} />
-      <Route path="/test-cloudbase" element={<TestCloudBase />} />
 
       {/* Share Book - Public route (accessible to everyone) */}
       <Route path="/share/:bookId" element={<ShareBook />} />
