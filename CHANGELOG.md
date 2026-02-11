@@ -18,12 +18,12 @@
 - 👤 个人设置（修改昵称、账号注销）
 
 #### 技术栈
-- React 19.2.4
+- React 18.3.1
 - TypeScript 4.9.5
 - Supabase (PostgreSQL)
-- Tailwind CSS 3.4.1
+- Tailwind CSS 3.4.19
 - Recharts 3.7.0
-- Netlify 部署
+- Cloudflare Pages 部署
 
 #### 数据库
 - 完整的 PostgreSQL 数据库架构
@@ -31,7 +31,7 @@
 - 自动化时间戳更新
 
 #### 部署
-- Netlify 自动化部署
+- Cloudflare Pages 自动化部署
 - Supabase 后端服务
 - 环境变量配置管理
 
@@ -43,14 +43,17 @@
 
 ### 📝 文档
 - 全新的 README.md 产品文档
-- DEPLOYMENT.md 部署指南
-- database-schema.sql 数据库架构文件
+- .cloudflarepages.json 部署配置
 - CHANGELOG.md 变更日志
 
 ### 🔧 配置
 - 更新版本号到 1.0.0
 - 简化项目结构
 - 统一代码风格
+
+### 🐛 修复
+- 修复 Statistics.tsx 中缺失 currentBook 状态的错误
+- 修复构建命令配置问题
 
 ---
 

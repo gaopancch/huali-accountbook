@@ -2,11 +2,8 @@
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/yourusername/huali-accountbook)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Netlify Status](https://api.netlify.com/api/v1/badges/your-badge-id/deploy-status)](https://richyou.netlify.app)
 
 一个基于 React + TypeScript + Supabase 构建的现代化记账应用，支持多账本管理、账本共享、数据统计和 Excel 导出。
-
-🔗 **在线体验**: [https://richyou.netlify.app](https://richyou.netlify.app)
 
 ## ✨ 功能特性
 
@@ -53,10 +50,10 @@
 ## 🛠️ 技术栈
 
 ### 前端
-- **框架**: React 19.2.4
+- **框架**: React 18.3.1
 - **语言**: TypeScript 4.9.5
 - **路由**: React Router 6.30.3
-- **样式**: Tailwind CSS 3.4.1
+- **样式**: Tailwind CSS 3.4.19
 - **图表**: Recharts 3.7.0
 - **构建**: Create React App 5.0.1
 
@@ -66,15 +63,14 @@
 - **存储**: Supabase Storage
 
 ### 部署
-- **平台**: Netlify
+- **平台**: Cloudflare Pages
 - **构建**: 自动化 CI/CD
-- **域名**: richyou.netlify.app
 
 ## 📦 快速开始
 
 ### 环境要求
-- Node.js >= 16.0.0
-- npm >= 8.0.0
+- Node.js >= 18.0.0
+- npm >= 9.0.0
 
 ### 安装依赖
 ```bash
@@ -117,17 +113,17 @@ huali-accountbook/
 │   │   ├── Statistics.tsx     # 统计页面
 │   │   ├── Profile.tsx        # 个人中心
 │   │   ├── Login.tsx          # 登录页
-│   │   ├── Signup.tsx         # 注册页
-│   │   └── ShareBook.tsx      # 账本共享页
+│   │   └── Signup.tsx         # 注册页
 │   ├── services/       # API 服务
-│   │   ├── supabase-auth.ts   # 认证服务
-│   │   └── db.ts              # 数据库服务
+│   │   └── supabase-auth.ts   # 认证服务
 │   ├── types/          # TypeScript 类型定义
 │   ├── utils/          # 工具函数
+│   │   └── exportExcel.ts     # Excel 导出
 │   ├── supabase.ts     # Supabase 配置
 │   ├── App.tsx         # 应用入口
 │   └── version.ts      # 版本信息
 ├── .env                # 环境变量
+├── .cloudflarepages.json  # Cloudflare Pages 配置
 ├── package.json        # 项目配置
 └── README.md          # 项目文档
 ```
@@ -136,17 +132,15 @@ huali-accountbook/
 
 ### users 表
 用户认证信息
-- `id`: UUID 主键
-- `uid`: 用户唯一标识
+- `uid`: UUID 主键
 - `email`: 邮箱
 - `password_hash`: 密码哈希
-- `display_name`: 显示名称
 - `created_at`: 创建时间
 
 ### user_profiles 表
 用户资料
-- `id`: UUID 主键
-- `uid`: 用户 ID
+- `uid`: 用户 ID (主键)
+- `email`: 邮箱
 - `display_name`: 显示名称
 - `current_book_id`: 当前选中的账本 ID
 - `created_at`: 创建时间
@@ -171,44 +165,65 @@ huali-accountbook/
 - `type`: 类型 (income/expense)
 - `category`: 分类
 - `amount`: 金额
-- `remark`: 备注
+- `remark`: 备注 (可选)
 - `date`: 日期 (YYYY-MM-DD)
 - `created_at`: 创建时间
 - `updated_at`: 更新时间
 
 ## 🚀 部署指南
 
-### Netlify 部署
+### Cloudflare Pages 部署
 
-1. Fork 本仓库到你的 GitHub 账号
+1. **准备工作**
+   - Fork 本仓库到你的 GitHub 账号
+   - 创建并配置 Supabase 项目
 
-2. 在 Netlify 中创建新项目
-   - 连接 GitHub 仓库
-   - 设置构建命令: `npm run build`
-   - 设置发布目录: `build`
+2. **在 Cloudflare 创建 Pages 项目**
+   - 访问 Cloudflare Dashboard
+   - 进入 **Workers & Pages**
+   - 点击 **Create application**
+   - 选择 **Connect to Git**
+   - 授权并选择你的 GitHub 仓库
 
-3. 配置环境变量
-   - 添加 `REACT_APP_SUPABASE_URL`
-   - 添加 `REACT_APP_SUPABASE_ANON_KEY`
+3. **配置构建设置**
 
-4. 部署应用
-   - 每次 push 到主分支会自动部署
+   | 设置项 | 值 |
+   |--------|-----|
+   | Framework preset | **Create React App** |
+   | Build command | `npm run build` |
+   | Build output directory | `build` |
+
+4. **配置环境变量**
+   在项目设置的 **Environment variables** 中添加：
+   - `REACT_APP_SUPABASE_URL`: 你的 Supabase 项目 URL
+   - `REACT_APP_SUPABASE_ANON_KEY`: 你的 Supabase anon public key
+
+5. **部署应用**
+   - 保存配置后，Cloudflare 会自动开始构建和部署
+   - 每次 push 到主分支会自动触发重新部署
+
+### 本地部署
+
+使用 `serve` 包部署构建结果：
+
+```bash
+npm install -g serve
+serve -s build -p 3000
+```
 
 ### Supabase 配置
 
-1. 创建 Supabase 项目
+1. **创建 Supabase 项目**
    - 访问 https://supabase.com
    - 创建新项目
 
-2. 执行数据库架构
+2. **执行数据库架构**
    - 进入 SQL Editor
-   - 执行 `database-schema.sql` 脚本
+   - 执行数据库表创建脚本
 
-3. 获取 API 密钥
+3. **获取 API 密钥**
    - 进入 Settings -> API
    - 复制 Project URL 和 anon public key
-
-详细部署步骤请参考 DEPLOYMENT.md 文件。
 
 ## 📝 开发规范
 
@@ -247,8 +262,8 @@ chore: 构建/工具链更新
 - [Supabase](https://supabase.com/) - 后端服务
 - [Tailwind CSS](https://tailwindcss.com/) - CSS 框架
 - [Recharts](https://recharts.org/) - 图表库
-- [Netlify](https://www.netlify.com/) - 部署平台
+- [Cloudflare Pages](https://pages.cloudflare.com/) - 部署平台
 
 ---
 
-Made with ❤️ by Claude Code & You
+Made with ❤️ by huali-accountbook
