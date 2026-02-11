@@ -5,7 +5,7 @@ import { supabase } from '../supabase';
 import { Book, DEFAULT_INCOME_CATEGORIES, DEFAULT_EXPENSE_CATEGORIES, Record as RecordType } from '../types';
 
 const AddRecord: React.FC = () => {
-  const { currentUser, userProfile, setCurrentBook } = useAuth();
+  const { currentUser, userProfile, setCurrentBook: setUserCurrentBook } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const recordId = searchParams.get('id');
@@ -138,7 +138,7 @@ const AddRecord: React.FC = () => {
 
       // Set the new default book as current book
       if (data && data.id) {
-        await setCurrentBook(data.id);
+        await setUserCurrentBook(data.id);
       }
 
       // Reload books to update state
