@@ -5,7 +5,7 @@ import { supabase } from '../supabase';
 import { Book, DEFAULT_INCOME_CATEGORIES, DEFAULT_EXPENSE_CATEGORIES, Record as RecordType } from '../types';
 
 const AddRecord: React.FC = () => {
-  const { currentUser, userProfile } = useAuth();
+  const { currentUser, userProfile, setCurrentBook } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const recordId = searchParams.get('id');
@@ -77,6 +77,13 @@ const AddRecord: React.FC = () => {
       console.log('AddRecord: Found books:', allBooks.length);
       console.log('AddRecord: Books:', allBooks.map(b => ({ id: b.id, name: b.name, ownerId: b.ownerId, members: b.members })));
 
+      // If no books exist, create a default book
+      if (allBooks.length === 0) {
+        console.log('AddRecord: No books found, creating default book...');
+        await createDefaultBook();
+        return; // createDefaultBook will call loadCurrentBook again
+      }
+
       let selectedBook = null;
       if (userProfile?.currentBookId) {
         selectedBook = allBooks.find(b => b.id === userProfile.currentBookId);
@@ -97,6 +104,47 @@ const AddRecord: React.FC = () => {
       setCategory(categories[0]);
     } catch (error) {
       console.error('Error loading book:', error);
+    }
+  };
+
+  const createDefaultBook = async () => {
+    if (!currentUser || !userProfile) return;
+
+    try {
+      const displayName = userProfile.displayName || currentUser.displayName || '用户';
+
+      const bookData = {
+        name: `${displayName} 的默认账本`,
+        owner_id: currentUser.uid,
+        owner_name: displayName,
+        members: [currentUser.uid],
+        is_default: true,
+        income_categories: DEFAULT_INCOME_CATEGORIES,
+        expense_categories: DEFAULT_EXPENSE_CATEGORIES,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      console.log('AddRecord: Creating default book:', bookData);
+      const { data, error } = await supabase
+        .from('books')
+        .insert([bookData])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      console.log('AddRecord: Default book created:', data);
+
+      // Set the new default book as current book
+      if (data && data.id) {
+        await setCurrentBook(data.id);
+      }
+
+      // Reload books to update state
+      await loadCurrentBook();
+    } catch (error) {
+      console.error('Error creating default book:', error);
     }
   };
 

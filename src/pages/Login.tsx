@@ -91,7 +91,7 @@ const Login: React.FC = () => {
                 onChange={(e) => setPhone(e.target.value)}
                 maxLength={11}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                placeholder="13800138000"
+                placeholder="18888888888"
               />
             </div>
           )}
