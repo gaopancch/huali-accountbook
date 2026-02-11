@@ -15,7 +15,11 @@ const Profile: React.FC = () => {
   const [showBookModal, setShowBookModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [shareLink, setShareLink] = useState('');
   const [newName, setNewName] = useState('');
   const [newBookName, setNewBookName] = useState('');
@@ -294,6 +298,75 @@ const Profile: React.FC = () => {
     }
   };
 
+  const handleChangePassword = async () => {
+    if (!currentPassword.trim()) {
+      alert('请输入当前密码');
+      return;
+    }
+
+    if (!newPassword.trim()) {
+      alert('请输入新密码');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      alert('新密码长度至少为6个字符');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      alert('两次输入的新密码不一致');
+      return;
+    }
+
+    if (currentPassword === newPassword) {
+      alert('新密码不能与当前密码相同');
+      return;
+    }
+
+    try {
+      if (!currentUser) return;
+
+      // 1. 验证当前密码
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('uid', currentUser.uid)
+        .single();
+
+      if (userError || !userData) {
+        alert('用户不存在');
+        return;
+      }
+
+      const currentPasswordHash = CryptoJS.SHA256(currentPassword).toString();
+
+      if (userData.password_hash !== currentPasswordHash) {
+        alert('当前密码错误');
+        return;
+      }
+
+      // 2. 更新密码
+      const newPasswordHash = CryptoJS.SHA256(newPassword).toString();
+
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ password_hash: newPasswordHash })
+        .eq('uid', currentUser.uid);
+
+      if (updateError) throw updateError;
+
+      alert('密码修改成功！');
+      setShowChangePasswordModal(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error) {
+      console.error('Error changing password:', error);
+      alert('修改密码失败，请稍后再试');
+    }
+  };
+
   const handleDeleteAccount = async () => {
     // 验证密码
     if (!deletePassword.trim()) {
@@ -484,9 +557,16 @@ const Profile: React.FC = () => {
               setNewName(userProfile?.displayName || '');
               setShowNameModal(true);
             }}
-            className="w-full p-4 text-left hover:bg-gray-50 flex justify-between items-center"
+            className="w-full p-4 text-left hover:bg-gray-50 flex justify-between items-center border-b"
           >
             <span>修改昵称</span>
+            <span className="text-gray-400">→</span>
+          </button>
+          <button
+            onClick={() => setShowChangePasswordModal(true)}
+            className="w-full p-4 text-left hover:bg-gray-50 flex justify-between items-center"
+          >
+            <span>修改密码</span>
             <span className="text-gray-400">→</span>
           </button>
         </div>
@@ -668,6 +748,70 @@ const Profile: React.FC = () => {
                 className="flex-1 py-2 bg-primary text-white rounded-lg"
               >
                 复制链接
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Change Password Modal */}
+      {showChangePasswordModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-sm">
+            <h3 className="text-lg font-bold mb-4">修改密码</h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-700 mb-1">当前密码</label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg"
+                  placeholder="输入当前密码"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-700 mb-1">新密码</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg"
+                  placeholder="至少6个字符"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-700 mb-1">确认新密码</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg"
+                  placeholder="再次输入新密码"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowChangePasswordModal(false);
+                  setCurrentPassword('');
+                  setNewPassword('');
+                  setConfirmPassword('');
+                }}
+                className="flex-1 py-2 border border-gray-300 rounded-lg"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleChangePassword}
+                className="flex-1 py-2 bg-primary text-white rounded-lg"
+              >
+                确定
               </button>
             </div>
           </div>

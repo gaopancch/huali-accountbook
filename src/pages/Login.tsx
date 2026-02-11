@@ -119,7 +119,13 @@ const Login: React.FC = () => {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-gray-600">
+        <div className="mt-4 text-center">
+          <Link to="/forgot-password" className="text-sm text-gray-600 hover:text-primary hover:underline">
+            忘记密码？
+          </Link>
+        </div>
+
+        <p className="mt-4 text-center text-gray-600">
           还没有账号?{' '}
           <Link to="/signup" className="text-primary hover:underline font-semibold">
             立即注册
