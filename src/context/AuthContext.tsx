@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { authService } from '../services/supabase-auth';
 import { supabase } from '../supabase';
-import { UserProfile } from '../types';
+import { UserProfile, LoginCredentials, SignupCredentials } from '../types';
 
 interface User {
   uid: string;
   email?: string;
+  phone?: string;
+  loginType: 'email' | 'phone';
   displayName: string;
 }
 
@@ -13,8 +15,8 @@ interface AuthContextType {
   currentUser: User | null;
   userProfile: UserProfile | null;
   loading: boolean;
-  signup: (email: string, password: string, displayName: string) => Promise<void>;
-  login: (email: string, password: string) => Promise<void>;
+  signup: (credentials: SignupCredentials) => Promise<void>;
+  login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
   updateUserProfile: (displayName: string) => Promise<void>;
   setCurrentBook: (bookId: string) => Promise<void>;
@@ -42,7 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('🔐 AuthContext: 开始加载用户信息');
       try {
         const user = authService.getCurrentUser();
-        console.log('🔐 AuthContext: 当前用户:', user ? user.email : '未登录');
+        console.log('🔐 AuthContext: 当前用户:', user ? (user.email || user.phone) : '未登录');
         if (user) {
           setCurrentUser(user);
           // 加载用户资料
@@ -82,6 +84,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUserProfile({
           uid: data.uid,
           email: data.email,
+          phone: data.phone,
+          loginType: data.login_type || 'email',
           displayName: data.display_name,
           currentBookId: data.current_book_id,
           createdAt: new Date(data.created_at),
@@ -92,15 +96,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const user = authService.getCurrentUser();
         if (user) {
           // 创建新的 user_profile
+          const profileRecord: any = {
+            uid: user.uid,
+            display_name: user.displayName,
+          };
+
+          if (user.email) {
+            profileRecord.email = user.email;
+          }
+          if (user.phone) {
+            profileRecord.phone = user.phone;
+          }
+
           const { error: insertError } = await supabase
             .from('user_profiles')
-            .insert([
-              {
-                uid: user.uid,
-                email: user.email,
-                display_name: user.displayName,
-              },
-            ]);
+            .insert([profileRecord]);
 
           if (insertError) {
             console.error('Error creating user profile:', insertError);
@@ -115,10 +125,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signup = async (email: string, password: string, displayName: string) => {
+  const signup = async (credentials: SignupCredentials) => {
     try {
       console.log('AuthContext: 开始注册流程');
-      const user = await authService.signUp(email, password, displayName);
+      const user = await authService.signUp(credentials);
       console.log('AuthContext: 注册成功，用户信息:', user);
       setCurrentUser(user);
       await loadUserProfile(user.uid);
@@ -129,8 +139,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = async (email: string, password: string) => {
-    const user = await authService.signIn(email, password);
+  const login = async (credentials: LoginCredentials) => {
+    const user = await authService.signIn(credentials);
     setCurrentUser(user);
     await loadUserProfile(user.uid);
   };

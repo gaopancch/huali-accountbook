@@ -3,7 +3,7 @@
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/yourusername/huali-accountbook)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-一个基于 React + TypeScript + Supabase 构建的现代化记账应用，支持多账本管理、账本共享、数据统计和 Excel 导出。
+一个基于 React + TypeScript + Supabase 构建的现代化记账应用，支持多账本管理、账本共享、数据统计和 Excel 导出。https://huali-accountbook.pages.dev/
 
 ## ✨ 功能特性
 

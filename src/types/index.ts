@@ -67,10 +67,22 @@ export interface PasswordEntry {
 export interface UserProfile {
   uid: string;
   email?: string;
+  phone?: string;
+  loginType: 'email' | 'phone';
   displayName: string;
   currentBookId?: string; // 当前选中的账本ID
   createdAt: Date;
 }
+
+// 登录凭证类型
+export type LoginCredentials =
+  | { type: 'email'; email: string; password: string }
+  | { type: 'phone'; phone: string; password: string };
+
+// 注册凭证类型
+export type SignupCredentials =
+  | { type: 'email'; email: string; password: string; displayName: string }
+  | { type: 'phone'; phone: string; password: string; displayName: string };
 
 // 默认分类
 export const DEFAULT_INCOME_CATEGORIES = ['工资', '奖金', '理财收益', '其他收入'];

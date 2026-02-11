@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import AuthMethodSwitch from '../components/AuthMethodSwitch';
+import type { SignupCredentials } from '../types';
 
 const Signup: React.FC = () => {
+  const [authMethod, setAuthMethod] = useState<'email' | 'phone'>('email');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -15,8 +19,23 @@ const Signup: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!email || !password || !confirmPassword || !displayName) {
-      setError('请填写所有字段');
+    if (!displayName) {
+      setError('请填写昵称');
+      return;
+    }
+
+    if (authMethod === 'email' && !email) {
+      setError('请填写邮箱');
+      return;
+    }
+
+    if (authMethod === 'phone' && !phone) {
+      setError('请填写手机号');
+      return;
+    }
+
+    if (!password || !confirmPassword) {
+      setError('请填写密码');
       return;
     }
 
@@ -33,7 +52,12 @@ const Signup: React.FC = () => {
     try {
       setError('');
       setLoading(true);
-      await signup(email, password, displayName);
+
+      const credentials: SignupCredentials = authMethod === 'email'
+        ? { type: 'email', email, password, displayName }
+        : { type: 'phone', phone, password, displayName };
+
+      await signup(credentials);
       navigate('/');
     } catch (err: any) {
       setError('注册失败: ' + (err.message || '请稍后再试'));
@@ -47,6 +71,8 @@ const Signup: React.FC = () => {
       <div className="max-w-md w-full bg-white rounded-lg shadow-2xl p-8">
         <h1 className="text-3xl font-bold text-center text-gray-800 mb-8">记账宝</h1>
         <h2 className="text-xl font-semibold text-center text-gray-600 mb-6">注册</h2>
+
+        <AuthMethodSwitch method={authMethod} onChange={setAuthMethod} />
 
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
@@ -69,19 +95,36 @@ const Signup: React.FC = () => {
             />
           </div>
 
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              邮箱
-            </label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="your@email.com"
-            />
-          </div>
+          {authMethod === 'email' ? (
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                邮箱
+              </label>
+              <input
+                type="email"
+                id="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                placeholder="your@email.com"
+              />
+            </div>
+          ) : (
+            <div>
+              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                手机号
+              </label>
+              <input
+                type="tel"
+                id="phone"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                maxLength={11}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                placeholder="13800138000"
+              />
+            </div>
+          )}
 
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">

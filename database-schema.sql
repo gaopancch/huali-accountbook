@@ -13,17 +13,22 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   uid TEXT UNIQUE NOT NULL,
-  email TEXT UNIQUE NOT NULL,
+  email TEXT UNIQUE,
+  phone TEXT UNIQUE,
   password_hash TEXT NOT NULL,
   display_name TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  login_type TEXT CHECK (login_type IN ('email', 'phone')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  CONSTRAINT users_email_or_phone_required CHECK ((email IS NOT NULL) OR (phone IS NOT NULL))
 );
 
 COMMENT ON TABLE users IS '用户认证信息表';
 COMMENT ON COLUMN users.uid IS '用户唯一标识符';
-COMMENT ON COLUMN users.email IS '用户邮箱';
+COMMENT ON COLUMN users.email IS '用户邮箱（可选）';
+COMMENT ON COLUMN users.phone IS '用户手机号（可选）';
 COMMENT ON COLUMN users.password_hash IS 'SHA256 加密的密码哈希';
 COMMENT ON COLUMN users.display_name IS '用户显示名称';
+COMMENT ON COLUMN users.login_type IS '登录方式: email 或 phone';
 
 -- ============================================
 -- 2. 用户资料表 (user_profiles)
@@ -32,12 +37,15 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   uid TEXT UNIQUE NOT NULL,
   email TEXT,
+  phone TEXT,
   display_name TEXT NOT NULL,
   current_book_id TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 COMMENT ON TABLE user_profiles IS '用户资料信息表';
+COMMENT ON COLUMN user_profiles.email IS '用户邮箱（可选）';
+COMMENT ON COLUMN user_profiles.phone IS '用户手机号（可选）';
 COMMENT ON COLUMN user_profiles.current_book_id IS '当前选中的账本ID';
 
 -- ============================================
@@ -91,6 +99,7 @@ COMMENT ON COLUMN records.date IS '记录日期 (YYYY-MM-DD格式)';
 -- 创建索引以提高查询性能
 -- ============================================
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
 CREATE INDEX IF NOT EXISTS idx_users_uid ON users(uid);
 CREATE INDEX IF NOT EXISTS idx_user_profiles_uid ON user_profiles(uid);
 CREATE INDEX IF NOT EXISTS idx_books_owner_id ON books(owner_id);
