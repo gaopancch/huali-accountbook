@@ -8,9 +8,10 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
 
-  // 登录、注册、分享页面不需要容器布局
+  // 登录、注册、忘记密码、分享页面不需要容器布局
   const isAuthPage = location.pathname === '/login' ||
                      location.pathname === '/signup' ||
+                     location.pathname === '/forgot-password' ||
                      location.pathname === '/test' ||
                      location.pathname.startsWith('/share/');
 
