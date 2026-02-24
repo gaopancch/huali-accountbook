@@ -157,16 +157,16 @@ const Statistics: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="text-sm opacity-80">本月收入</div>
-              <div className="text-2xl font-bold">¥{formatCurrency(totalIncome)}</div>
+              <div className="text-base font-bold">¥{formatCurrency(totalIncome)}</div>
             </div>
             <div>
               <div className="text-sm opacity-80">本月支出</div>
-              <div className="text-2xl font-bold">¥{formatCurrency(totalExpense)}</div>
+              <div className="text-base font-bold">¥{formatCurrency(totalExpense)}</div>
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-white border-opacity-30">
             <div className="text-sm opacity-80">结余</div>
-            <div className="text-2xl font-bold">¥{formatCurrency(totalIncome - totalExpense)}</div>
+            <div className="text-base font-bold">¥{formatCurrency(totalIncome - totalExpense)}</div>
           </div>
         </div>
       </div>
@@ -206,7 +206,7 @@ const Statistics: React.FC = () => {
                     <span>{item.name}</span>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold">¥{formatCurrency(item.value)}</div>
+                    <div className="text-xs font-bold">¥{formatCurrency(item.value)}</div>
                     <div className="text-xs text-gray-500">
                       {formatPercentage((item.value / totalExpense) * 100)}
                     </div>
@@ -253,7 +253,7 @@ const Statistics: React.FC = () => {
                     <span>{item.name}</span>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold">¥{formatCurrency(item.value)}</div>
+                    <div className="text-xs font-bold">¥{formatCurrency(item.value)}</div>
                     <div className="text-xs text-gray-500">
                       {formatPercentage((item.value / totalIncome) * 100)}
                     </div>
