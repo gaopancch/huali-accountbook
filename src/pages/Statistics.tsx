@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabase';
 import { Record as RecordType, Book } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { formatCurrency, formatPercentage } from '../utils/formatNumber';
 
 const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2'];
 
@@ -156,16 +157,16 @@ const Statistics: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="text-sm opacity-80">本月收入</div>
-              <div className="text-2xl font-bold">¥{totalIncome.toFixed(2)}</div>
+              <div className="text-2xl font-bold">¥{formatCurrency(totalIncome)}</div>
             </div>
             <div>
               <div className="text-sm opacity-80">本月支出</div>
-              <div className="text-2xl font-bold">¥{totalExpense.toFixed(2)}</div>
+              <div className="text-2xl font-bold">¥{formatCurrency(totalExpense)}</div>
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-white border-opacity-30">
             <div className="text-sm opacity-80">结余</div>
-            <div className="text-2xl font-bold">¥{(totalIncome - totalExpense).toFixed(2)}</div>
+            <div className="text-2xl font-bold">¥{formatCurrency(totalIncome - totalExpense)}</div>
           </div>
         </div>
       </div>
@@ -184,13 +185,13 @@ const Statistics: React.FC = () => {
                   cx="50%"
                   cy="50%"
                   outerRadius={80}
-                  label={(entry) => `${entry.name} ¥${entry.value.toFixed(0)}`}
+                  label={(entry) => `${entry.name} ¥${formatCurrency(entry.value, 0)}`}
                 >
                   {expenseData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => `¥${Number(value).toFixed(2)}`} />
+                <Tooltip formatter={(value) => `¥${formatCurrency(Number(value))}`} />
               </PieChart>
             </ResponsiveContainer>
 
@@ -205,9 +206,9 @@ const Statistics: React.FC = () => {
                     <span>{item.name}</span>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold">¥{item.value.toFixed(2)}</div>
+                    <div className="font-bold">¥{formatCurrency(item.value)}</div>
                     <div className="text-xs text-gray-500">
-                      {((item.value / totalExpense) * 100).toFixed(1)}%
+                      {formatPercentage((item.value / totalExpense) * 100)}
                     </div>
                   </div>
                 </div>
@@ -231,13 +232,13 @@ const Statistics: React.FC = () => {
                   cx="50%"
                   cy="50%"
                   outerRadius={80}
-                  label={(entry) => `${entry.name} ¥${entry.value.toFixed(0)}`}
+                  label={(entry) => `${entry.name} ¥${formatCurrency(entry.value, 0)}`}
                 >
                   {incomeData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => `¥${Number(value).toFixed(2)}`} />
+                <Tooltip formatter={(value) => `¥${formatCurrency(Number(value))}`} />
               </PieChart>
             </ResponsiveContainer>
 
@@ -252,9 +253,9 @@ const Statistics: React.FC = () => {
                     <span>{item.name}</span>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold">¥{item.value.toFixed(2)}</div>
+                    <div className="font-bold">¥{formatCurrency(item.value)}</div>
                     <div className="text-xs text-gray-500">
-                      {((item.value / totalIncome) * 100).toFixed(1)}%
+                      {formatPercentage((item.value / totalIncome) * 100)}
                     </div>
                   </div>
                 </div>

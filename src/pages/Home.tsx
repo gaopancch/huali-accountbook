@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabase';
 import { Record as RecordType, Book } from '../types';
+import { formatCurrency } from '../utils/formatNumber';
 
 const Home: React.FC = function() {
   const recordsState = useState<RecordType[]>([]);
@@ -165,15 +166,15 @@ const Home: React.FC = function() {
           <div className="grid grid-cols-3 gap-4 mt-4">
             <div>
               <div className="text-xs opacity-80">收入</div>
-              <div className="text-lg font-bold text-income">¥{income.toFixed(2)}</div>
+              <div className="text-lg font-bold text-income">¥{formatCurrency(income)}</div>
             </div>
             <div>
               <div className="text-xs opacity-80">支出</div>
-              <div className="text-lg font-bold text-expense">¥{expense.toFixed(2)}</div>
+              <div className="text-lg font-bold text-expense">¥{formatCurrency(expense)}</div>
             </div>
             <div>
               <div className="text-xs opacity-80">结余</div>
-              <div className="text-lg font-bold">¥{balance.toFixed(2)}</div>
+              <div className="text-lg font-bold">¥{formatCurrency(balance)}</div>
             </div>
           </div>
         </div>
@@ -213,7 +214,7 @@ const Home: React.FC = function() {
                           <div
                             className={'text-lg font-bold ' + typeClass}
                           >
-                            {typePrefix}¥{record.amount.toFixed(2)}
+                            {typePrefix}¥{formatCurrency(record.amount)}
                           </div>
                         </div>
                       );
