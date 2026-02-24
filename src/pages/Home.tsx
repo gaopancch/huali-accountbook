@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../supabase';
 import { Record as RecordType, Book } from '../types';
 import { formatCurrency } from '../utils/formatNumber';
+import AdBanner from '../components/AdBanner';
 
 const Home: React.FC = function() {
   const recordsState = useState<RecordType[]>([]);
@@ -178,6 +179,11 @@ const Home: React.FC = function() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Ad Banner */}
+      <div className="px-4 pt-4">
+        <AdBanner adFormat="horizontal" className="mb-4" />
       </div>
 
       {/* Records List */}
