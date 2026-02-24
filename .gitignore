@@ -24,3 +24,15 @@ yarn-error.log*
 
 # Local Netlify folder
 .netlify
+
+# Supabase local development
+supabase/.temp/
+.env
+.env.*
+
+# Sensitive files - DO NOT COMMIT
+**/secrets.*
+**/*secret*
+**/*password*
+**/*credentials*
+**/config.local.*

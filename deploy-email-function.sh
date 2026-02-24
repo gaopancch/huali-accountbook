@@ -90,7 +90,9 @@ echo "设置 SMTP_USER..."
 supabase secrets set SMTP_USER=gaopancch@163.com
 
 echo "设置 SMTP_PASSWORD..."
-supabase secrets set SMTP_PASSWORD=YMbTVvDUfLguVJf3
+echo "请输入您的163邮箱授权码:"
+read -s SMTP_PASSWORD
+supabase secrets set SMTP_PASSWORD=$SMTP_PASSWORD
 
 if [ $? -ne 0 ]; then
     echo "❌ 环境变量配置失败"
