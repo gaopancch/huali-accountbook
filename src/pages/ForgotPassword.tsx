@@ -76,14 +76,39 @@ const ForgotPassword: React.FC = () => {
 
       if (updateError) throw updateError;
 
-      // 在实际生产环境中，这里应该调用邮件/短信服务
-      // 目前是演示环境，直接显示临时密码
-      setTempPassword(newPassword);
+      // 调用Edge Function发送邮件
+      try {
+        const { data: functionData, error: functionError } = await supabase.functions.invoke(
+          'send-reset-password-email',
+          {
+            body: {
+              email: method === 'email' ? identifier : null,
+              phone: method === 'phone' ? formatPhone(identifier) : null,
+              tempPassword: newPassword,
+              loginType: method
+            }
+          }
+        );
 
-      if (method === 'email') {
-        setSuccess(`密码重置成功！临时密码已生成（生产环境将发送到您的邮箱）。`);
-      } else {
-        setSuccess(`密码重置成功！临时密码已生成（生产环境将发送短信到您的手机）。`);
+        if (functionError) {
+          console.error('邮件发送失败:', functionError);
+          // 即使邮件发送失败，密码已经重置，显示临时密码
+          setTempPassword(newPassword);
+          setSuccess(`密码已重置，但邮件发送失败。请使用以下临时密码登录：`);
+        } else {
+          // 邮件发送成功
+          if (method === 'email') {
+            setSuccess(`密码重置成功！临时密码已发送到您的邮箱 ${identifier}，请查收。`);
+          } else {
+            const recipientEmail = functionData?.recipientEmail || '运营商邮箱';
+            setSuccess(`密码重置成功！临时密码已发送到 ${recipientEmail}，请查收。`);
+          }
+        }
+      } catch (emailError: any) {
+        console.error('发送邮件异常:', emailError);
+        // 邮件发送出错，显示临时密码
+        setTempPassword(newPassword);
+        setSuccess(`密码已重置，但邮件发送失败。请使用以下临时密码登录：`);
       }
     } catch (error: any) {
       console.error('Password reset error:', error);
@@ -157,6 +182,11 @@ const ForgotPassword: React.FC = () => {
                 </p>
               </div>
             )}
+            {!tempPassword && (
+              <p className="text-sm text-gray-600 mt-2">
+                请查收邮件并使用临时密码登录，登录后请立即修改密码。
+              </p>
+            )}
           </div>
         )}
 
@@ -213,7 +243,7 @@ const ForgotPassword: React.FC = () => {
         {tempPassword && (
           <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-xs text-yellow-800">
-              <strong>演示说明：</strong>在生产环境中，临时密码将通过邮件或短信发送，不会在页面上显示。
+              <strong>邮件发送失败提示：</strong>由于邮件服务配置或网络问题导致邮件发送失败，系统在页面上临时显示了密码。正常情况下，密码将通过邮件发送，不会在页面显示。
             </p>
           </div>
         )}
