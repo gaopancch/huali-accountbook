@@ -6,7 +6,8 @@
  */
 
 // Cloudflare Worker 的 URL
-const WORKER_URL = process.env.REACT_APP_AI_WORKER_URL || 'https://huali-ai-chat.gaopancch99.workers.dev';
+// 使用 Pages Function 代理，避免 workers.dev 域名访问限制
+const WORKER_URL = process.env.REACT_APP_AI_WORKER_URL || '/api/ai-chat';
 
 export interface AIMessage {
   role: 'user' | 'assistant' | 'system';
