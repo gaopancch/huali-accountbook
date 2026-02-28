@@ -6,8 +6,7 @@
  */
 
 // Cloudflare Worker 的 URL
-// 使用相对路径调用 Pages Function（避免 workers.dev 访问问题）
-const WORKER_URL = process.env.REACT_APP_AI_WORKER_URL || '/api/ai-chat';
+const WORKER_URL = process.env.REACT_APP_AI_WORKER_URL || 'https://huali-ai-chat.gaopancch99.workers.dev';
 
 export interface AIMessage {
   role: 'user' | 'assistant' | 'system';
