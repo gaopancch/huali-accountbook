@@ -5,9 +5,8 @@
  * 完全免费，无需 API Key
  */
 
-// Cloudflare Worker 的 URL（部署后填入）
-// 本地测试可以先使用一个占位 URL
-const WORKER_URL = process.env.REACT_APP_AI_WORKER_URL || 'https://huali-ai-chat.your-subdomain.workers.dev';
+// Cloudflare Worker 的 URL
+const WORKER_URL = process.env.REACT_APP_AI_WORKER_URL || 'https://huali-ai-chat.gaopancch99.workers.dev';
 
 export interface AIMessage {
   role: 'user' | 'assistant' | 'system';
