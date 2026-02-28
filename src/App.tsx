@@ -10,6 +10,7 @@ import AddRecord from './pages/AddRecord';
 import Statistics from './pages/Statistics';
 import Profile from './pages/Profile';
 import ShareBook from './pages/ShareBook';
+import LearnEnglish from './pages/LearnEnglish';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -118,6 +119,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Profile />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/learn-english"
+        element={
+          <ProtectedRoute>
+            <LearnEnglish />
           </ProtectedRoute>
         }
       />

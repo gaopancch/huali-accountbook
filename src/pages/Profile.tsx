@@ -549,6 +549,23 @@ const Profile: React.FC = () => {
       </div>
 
       <div className="p-4 space-y-4">
+        {/* Learn English Entry */}
+        <button
+          onClick={() => navigate('/learn-english')}
+          className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all hover:scale-105 active:scale-95"
+        >
+          <div className="flex items-center justify-between">
+            <div className="text-left">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl">📚</span>
+                <h3 className="text-xl font-bold">Learn English</h3>
+              </div>
+              <p className="text-sm opacity-90">每天10个单词，轻松学英语</p>
+            </div>
+            <span className="text-3xl">→</span>
+          </div>
+        </button>
+
         {/* User Settings */}
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           <h3 className="font-bold p-4 border-b">用户设置</h3>
