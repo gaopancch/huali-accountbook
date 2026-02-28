@@ -566,6 +566,23 @@ const Profile: React.FC = () => {
           </div>
         </button>
 
+        {/* AI Chat Entry */}
+        <button
+          onClick={() => navigate('/ai-chat')}
+          className="w-full bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all hover:scale-105 active:scale-95"
+        >
+          <div className="flex items-center justify-between">
+            <div className="text-left">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl">🤖</span>
+                <h3 className="text-xl font-bold">AI 助手</h3>
+              </div>
+              <p className="text-sm opacity-90">智能对话，随时为你解答</p>
+            </div>
+            <span className="text-3xl">→</span>
+          </div>
+        </button>
+
         {/* User Settings */}
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           <h3 className="font-bold p-4 border-b">用户设置</h3>

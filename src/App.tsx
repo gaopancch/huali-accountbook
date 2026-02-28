@@ -11,6 +11,7 @@ import Statistics from './pages/Statistics';
 import Profile from './pages/Profile';
 import ShareBook from './pages/ShareBook';
 import LearnEnglish from './pages/LearnEnglish';
+import AIChat from './pages/AIChat';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -127,6 +128,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <LearnEnglish />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/ai-chat"
+        element={
+          <ProtectedRoute>
+            <AIChat />
           </ProtectedRoute>
         }
       />
