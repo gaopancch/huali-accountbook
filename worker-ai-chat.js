@@ -39,12 +39,16 @@ export default {
         );
       }
 
+      // 限制对话历史长度（只保留最近10条消息，包含system message）
+      // 这样可以加快处理速度，特别对移动端有帮助
+      const limitedMessages = messages.slice(-10);
+
       // 调用 Cloudflare Workers AI
       // 使用 @cf/meta/llama-3.1-8b-instruct 模型（免费，支持中文）
       const response = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
-        messages: messages,
+        messages: limitedMessages,
         stream: false,
-        max_tokens: 1024,
+        max_tokens: 512,  // 减少 token 数量加快响应
         temperature: 0.7,
       });
 
@@ -56,6 +60,7 @@ export default {
           headers: {
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'no-cache',
           },
         }
       );
