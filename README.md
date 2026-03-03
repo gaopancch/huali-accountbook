@@ -47,6 +47,35 @@
 - 管理多个账本
 - 账号注销功能
 
+### 📚 英语学习模块
+- **智能词汇学习系统**
+  - 初始加载5个数据库精选单词
+  - AI自动生成30个今日词汇，后台异步加载
+  - 学完固定单词后无缝切换到AI生成词汇
+  - 学习进度达到一半时自动继续生成新词汇
+  - 支持无限学习，词汇源源不断
+- **每日一句**
+  - 精选英文句子及翻译
+  - 标注重点词汇和使用场景
+  - 基于日期确保每天内容一致
+- **学习统计**
+  - 连续打卡天数追踪
+  - 累计学习单词数统计
+  - 已掌握单词和收藏统计
+  - 90天学习日历热力图
+- **交互式单词卡片**
+  - 翻转卡片查看释义和例句
+  - 标记单词为"已掌握"
+  - 收藏重要单词
+  - 流畅的动画效果
+
+### 🤖 AI 助手
+- 基于 Cloudflare Workers AI
+- 智能对话问答
+- 支持多轮对话
+- 免费使用，无需API密钥
+- 词汇生成采用AI技术，确保单词的多样性和实用性
+
 ## 🛠️ 技术栈
 
 ### 前端
@@ -61,10 +90,12 @@
 - **数据库**: Supabase (PostgreSQL)
 - **认证**: 自定义认证系统
 - **存储**: Supabase Storage
+- **AI服务**: Cloudflare Workers AI (词汇生成、智能问答)
 
 ### 部署
 - **平台**: Cloudflare Pages
 - **构建**: 自动化 CI/CD
+- **API代理**: Cloudflare Pages Functions
 
 ## 📦 快速开始
 
@@ -78,11 +109,15 @@ npm install
 ```
 
 ### 配置环境变量
-创建 `.env` 文件并配置 Supabase 连接信息：
+创建 `.env` 文件并配置相关信息：
 
 ```env
+# Supabase 配置
 REACT_APP_SUPABASE_URL=your_supabase_project_url
 REACT_APP_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# AI 服务配置 (可选)
+REACT_APP_AI_WORKER_URL=/api/ai-chat
 ```
 
 ### 启动开发服务器
@@ -104,8 +139,16 @@ npm run build
 ```
 huali-accountbook/
 ├── public/              # 静态资源
+├── functions/           # Cloudflare Pages Functions
+│   └── api/
+│       └── ai-chat.js   # AI 聊天代理函数
 ├── src/
 │   ├── components/      # 可复用组件
+│   │   └── english/     # 英语学习组件
+│   │       ├── WordCard.tsx          # 单词卡片组件
+│   │       ├── DailySentence.tsx     # 每日一句组件
+│   │       ├── LearningStats.tsx     # 学习统计组件
+│   │       └── StudyCalendar.tsx     # 学习日历热力图
 │   ├── context/        # React Context (认证等)
 │   ├── pages/          # 页面组件
 │   │   ├── Home.tsx           # 首页 - 记录列表
@@ -113,31 +156,43 @@ huali-accountbook/
 │   │   ├── Statistics.tsx     # 统计页面
 │   │   ├── Profile.tsx        # 个人中心
 │   │   ├── Login.tsx          # 登录页
-│   │   └── Signup.tsx         # 注册页
+│   │   ├── Signup.tsx         # 注册页
+│   │   ├── LearnEnglish.tsx   # 英语学习页面
+│   │   └── AIChat.tsx         # AI 助手页面
 │   ├── services/       # API 服务
-│   │   └── supabase-auth.ts   # 认证服务
+│   │   ├── supabase-auth.ts   # 认证服务
+│   │   ├── db.ts              # 数据库服务
+│   │   ├── englishAPI.ts      # 英语学习 API
+│   │   ├── cloudflareAI.ts    # Cloudflare AI 服务
+│   │   └── geminiAPI.ts       # Gemini API 服务
 │   ├── types/          # TypeScript 类型定义
+│   │   ├── index.ts           # 通用类型
+│   │   ├── english.ts         # 英语学习类型
+│   │   └── ai.ts              # AI 服务类型
 │   ├── utils/          # 工具函数
 │   │   └── exportExcel.ts     # Excel 导出
 │   ├── supabase.ts     # Supabase 配置
 │   ├── App.tsx         # 应用入口
 │   └── version.ts      # 版本信息
 ├── .env                # 环境变量
-├── .cloudflarepages.json  # Cloudflare Pages 配置
+├── .cloudflarepages.json      # Cloudflare Pages 配置
+├── database-english-module.sql # 英语模块数据库架构
 ├── package.json        # 项目配置
 └── README.md          # 项目文档
 ```
 
 ## 🗄️ 数据库架构
 
-### users 表
+### 核心业务表
+
+#### users 表
 用户认证信息
 - `uid`: UUID 主键
 - `email`: 邮箱
 - `password_hash`: 密码哈希
 - `created_at`: 创建时间
 
-### user_profiles 表
+#### user_profiles 表
 用户资料
 - `uid`: 用户 ID (主键)
 - `email`: 邮箱
@@ -145,7 +200,7 @@ huali-accountbook/
 - `current_book_id`: 当前选中的账本 ID
 - `created_at`: 创建时间
 
-### books 表
+#### books 表
 账本信息
 - `id`: UUID 主键
 - `name`: 账本名称
@@ -158,7 +213,7 @@ huali-accountbook/
 - `created_at`: 创建时间
 - `updated_at`: 更新时间
 
-### records 表
+#### records 表
 记账记录
 - `id`: UUID 主键
 - `book_id`: 所属账本 ID
@@ -169,6 +224,50 @@ huali-accountbook/
 - `date`: 日期 (YYYY-MM-DD)
 - `created_at`: 创建时间
 - `updated_at`: 更新时间
+
+### 英语学习模块表
+
+#### english_words 表
+英语单词库
+- `id`: UUID 主键
+- `word`: 单词 (英文)
+- `phonetic`: 音标
+- `definition`: 定义 (英文)
+- `example`: 例句 (英文)
+- `translation`: 例句翻译 (中文)
+- `level`: CEFR等级 (A1/A2/B1/B2/C1/C2)
+- `category`: 分类 (日常用语/职场/旅行/餐饮等)
+- `created_at`: 创建时间
+
+#### user_word_progress 表
+用户单词学习进度
+- `id`: UUID 主键
+- `user_id`: 用户 ID
+- `word_id`: 单词 ID (外键)
+- `status`: 状态 (learning/mastered)
+- `is_favorite`: 是否收藏
+- `learned_date`: 学习日期
+- `review_count`: 复习次数
+- `created_at`: 创建时间
+- `updated_at`: 更新时间
+
+#### daily_sentences 表
+每日一句库
+- `id`: UUID 主键
+- `sentence`: 英文句子
+- `translation`: 中文翻译
+- `keywords`: 重点词汇数组
+- `scene`: 使用场景
+- `created_at`: 创建时间
+
+#### user_study_logs 表
+用户学习日志
+- `id`: UUID 主键
+- `user_id`: 用户 ID
+- `study_date`: 学习日期
+- `words_learned`: 学习的单词数
+- `study_duration`: 学习时长 (分钟)
+- `created_at`: 创建时间
 
 ## 🚀 部署指南
 
@@ -197,6 +296,7 @@ huali-accountbook/
    在项目设置的 **Environment variables** 中添加：
    - `REACT_APP_SUPABASE_URL`: 你的 Supabase 项目 URL
    - `REACT_APP_SUPABASE_ANON_KEY`: 你的 Supabase anon public key
+   - `REACT_APP_AI_WORKER_URL`: (可选) AI Worker URL，默认 `/api/ai-chat`
 
 5. **部署应用**
    - 保存配置后，Cloudflare 会自动开始构建和部署
