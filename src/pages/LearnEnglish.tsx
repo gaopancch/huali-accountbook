@@ -130,8 +130,8 @@ const LearnEnglish: React.FC = () => {
       const mastered = wordsData.filter((w) => w.progress?.status === 'mastered').length;
       setMasteredCount(mastered);
 
-      // 在后台开始生成20个AI词汇（分2批，每批10个）
-      generateMoreAIWords(20);
+      // 不再在初始时生成AI单词，等用户学完第一个数据库单词后再生成
+      console.log('初始化完成，等待用户学习第一个单词后再生成AI词汇');
     } catch (error) {
       console.error('Error loading English learning data:', error);
       alert('加载数据失败，请稍后再试');
@@ -168,9 +168,25 @@ const LearnEnglish: React.FC = () => {
             : word
         );
 
-        // 在状态更新后检查是否需要添加新词汇
+        // 检查是否需要生成新的AI词汇
         const databaseWords = updatedWords.filter(w => !w.id.startsWith('ai-'));
+        const aiWordsInList = updatedWords.filter(w => w.id.startsWith('ai-'));
+
         const masteredDatabaseWords = databaseWords.filter(w => w.progress?.status === 'mastered');
+        const masteredAIWords = aiWordsInList.filter(w => w.progress?.status === 'mastered');
+
+        // 策略1: 当学完第1个数据库单词时，生成第一批5个AI单词
+        if (!isAIWord && masteredDatabaseWords.length === 1) {
+          console.log('学完第1个数据库单词，开始生成第一批5个AI单词');
+          generateMoreAIWords(5);
+        }
+
+        // 策略2: 当学完每批AI单词的第1个时（即总AI掌握数 % 5 === 1），生成下一批5个
+        // 例如：掌握第1个AI单词（1%5=1）时生成第二批，掌握第6个（6%5=1）时生成第三批
+        if (isAIWord && masteredAIWords.length % 5 === 1 && masteredAIWords.length > 0) {
+          console.log(`学完第${masteredAIWords.length}个AI单词，开始生成下一批5个AI单词`);
+          generateMoreAIWords(5);
+        }
 
         // 如果已经掌握了所有5个数据库单词，且有可用的AI词汇，添加下一个AI词汇
         if (masteredDatabaseWords.length >= 5 && aiWords.length > aiWordsConsumed) {
@@ -195,15 +211,7 @@ const LearnEnglish: React.FC = () => {
             };
 
             // 更新消耗计数
-            setAiWordsConsumed(prev => {
-              const newConsumed = prev + 1;
-              // 如果消耗了10个AI词汇（一半），继续生成新的20个
-              if (newConsumed === 10) {
-                console.log('已消耗10个AI词汇，继续生成新的20个...');
-                generateMoreAIWords(20);
-              }
-              return newConsumed;
-            });
+            setAiWordsConsumed(prev => prev + 1);
 
             return [...updatedWords, aiWordWithProgress];
           }
