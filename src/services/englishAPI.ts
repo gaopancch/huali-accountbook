@@ -484,7 +484,8 @@ Requirements:
 
     console.log(`Requesting AI to generate ${batchSize} words...`);
     const response = await cloudflareAI.sendMessage(prompt);
-    console.log('AI response received:', response.substring(0, 200) + '...');
+    console.log('AI response length:', response.length);
+    console.log('AI response:', response);
 
     // 尝试解析AI返回的JSON
     let words: any[];
@@ -496,7 +497,24 @@ Requirements:
       } catch (directError) {
         // 如果直接解析失败，尝试提取JSON数组
         console.log('Direct parse failed, trying to extract JSON array...');
-        const jsonMatch = response.match(/\[[\s\S]*\]/);
+
+        // 尝试修复不完整的JSON（去掉最后不完整的对象）
+        let jsonText = response.trim();
+
+        // 如果JSON不完整，尝试找到最后一个完整的对象
+        if (!jsonText.endsWith(']')) {
+          console.log('JSON appears incomplete, trying to fix...');
+          // 找到最后一个完整的 }
+          const lastCompleteObject = jsonText.lastIndexOf('}');
+          if (lastCompleteObject !== -1) {
+            // 截取到最后一个完整对象，然后加上 ]
+            jsonText = jsonText.substring(0, lastCompleteObject + 1) + ']';
+            console.log('Fixed JSON by removing incomplete object');
+          }
+        }
+
+        // 提取JSON数组
+        const jsonMatch = jsonText.match(/\[[\s\S]*\]/);
         if (jsonMatch) {
           words = JSON.parse(jsonMatch[0]);
           console.log('JSON extraction succeeded');
