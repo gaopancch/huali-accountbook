@@ -32,6 +32,7 @@ const LearnEnglish: React.FC = () => {
   const [aiWords, setAiWords] = useState<EnglishWord[]>([]); // AI生成的词汇列表
   const [isGeneratingAI, setIsGeneratingAI] = useState(false); // 是否正在生成AI词汇
   const [aiWordsConsumed, setAiWordsConsumed] = useState(0); // 已消耗的AI词汇数量
+  const [aiGenerationFailed, setAiGenerationFailed] = useState(false); // AI生成是否失败
   const isGeneratingRef = useRef(false); // 用于防止重复生成
 
   useEffect(() => {
@@ -82,6 +83,7 @@ const LearnEnglish: React.FC = () => {
     try {
       isGeneratingRef.current = true;
       setIsGeneratingAI(true);
+      setAiGenerationFailed(false); // 重置失败状态
       console.log(`开始生成${count}个AI词汇...`);
 
       const newAIWords = await generateAIWords(count);
@@ -90,7 +92,7 @@ const LearnEnglish: React.FC = () => {
       setAiWords(prev => [...prev, ...newAIWords]);
     } catch (error) {
       console.error('生成AI词汇失败:', error);
-      // 如果生成失败，可以选择重试或提示用户
+      setAiGenerationFailed(true); // 标记生成失败
     } finally {
       setIsGeneratingAI(false);
       isGeneratingRef.current = false;
@@ -382,32 +384,68 @@ const LearnEnglish: React.FC = () => {
                   />
                 ))}
               </div>
-            ) : isGeneratingAI || (aiWords.length === 0 && words.filter(w => !w.id.startsWith('ai-')).filter(w => w.progress?.status === 'mastered').length >= 5) ? (
-              // AI正在生成或者数据库单词已学完但AI词汇还没准备好
-              <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
-                <div className="text-6xl mb-4">⏳</div>
-                <h3 className="text-2xl font-bold text-gray-800 mb-2">请稍候...</h3>
-                <p className="text-gray-600 mb-4">AI正在为你生成新的学习词汇</p>
-                <div className="flex justify-center">
-                  <svg className="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
+            ) : (() => {
+              // 检查数据库单词是否都已掌握
+              const databaseWords = words.filter(w => !w.id.startsWith('ai-'));
+              const databaseWordsAllMastered = databaseWords.filter(w => w.progress?.status === 'mastered').length >= 5;
+
+              // 情况1: 数据库单词学完了，AI还在生成中
+              if (databaseWordsAllMastered && isGeneratingAI) {
+                return (
+                  <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
+                    <div className="text-6xl mb-4">⏳</div>
+                    <h3 className="text-2xl font-bold text-gray-800 mb-2">请稍候...</h3>
+                    <p className="text-gray-600 mb-4">AI正在为你生成新的学习词汇</p>
+                    <div className="flex justify-center">
+                      <svg className="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    </div>
+                  </div>
+                );
+              }
+
+              // 情况2: 数据库单词学完了，AI生成失败
+              if (databaseWordsAllMastered && aiGenerationFailed) {
+                return (
+                  <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
+                    <div className="text-6xl mb-4">😔</div>
+                    <h3 className="text-2xl font-bold text-gray-800 mb-2">AI词汇生成失败</h3>
+                    <p className="text-gray-600 mb-4">抱歉，AI服务暂时不可用</p>
+                    <div className="flex gap-4 justify-center">
+                      <button
+                        onClick={() => generateMoreAIWords(30)}
+                        className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-full font-semibold hover:shadow-lg transition-shadow"
+                      >
+                        重试生成
+                      </button>
+                      <button
+                        onClick={() => navigate('/')}
+                        className="bg-gray-200 text-gray-700 px-6 py-3 rounded-full font-semibold hover:bg-gray-300 transition-colors"
+                      >
+                        返回首页
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
+              // 情况3: 真的学完了所有单词
+              return (
+                <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
+                  <div className="text-6xl mb-4">🎉</div>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-2">太棒了！</h3>
+                  <p className="text-gray-600">你已经完成今天所有单词的学习！</p>
+                  <button
+                    onClick={() => navigate('/')}
+                    className="mt-6 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-full font-semibold hover:shadow-lg transition-shadow"
+                  >
+                    返回首页
+                  </button>
                 </div>
-              </div>
-            ) : (
-              <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
-                <div className="text-6xl mb-4">🎉</div>
-                <h3 className="text-2xl font-bold text-gray-800 mb-2">太棒了！</h3>
-                <p className="text-gray-600">你已经完成今天所有单词的学习！</p>
-                <button
-                  onClick={() => navigate('/')}
-                  className="mt-6 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-full font-semibold hover:shadow-lg transition-shadow"
-                >
-                  返回首页
-                </button>
-              </div>
-            )}
+              );
+            })()}
           </div>
         )}
 
