@@ -86,10 +86,20 @@ const LearnEnglish: React.FC = () => {
       setAiGenerationFailed(false); // 重置失败状态
       console.log(`开始生成${count}个AI词汇...`);
 
-      const newAIWords = await generateAIWords(count);
-      console.log(`成功生成${newAIWords.length}个AI词汇`);
+      // 由于每次最多生成10个，需要分批生成
+      const batches = Math.ceil(count / 10);
+      const allWords: EnglishWord[] = [];
 
-      setAiWords(prev => [...prev, ...newAIWords]);
+      for (let i = 0; i < batches; i++) {
+        const batchSize = Math.min(10, count - i * 10);
+        console.log(`生成第${i + 1}批，共${batchSize}个单词...`);
+        const batchWords = await generateAIWords(batchSize);
+        allWords.push(...batchWords);
+        console.log(`第${i + 1}批生成完成，共${batchWords.length}个单词`);
+      }
+
+      console.log(`成功生成${allWords.length}个AI词汇`);
+      setAiWords(prev => [...prev, ...allWords]);
     } catch (error) {
       console.error('生成AI词汇失败:', error);
       setAiGenerationFailed(true); // 标记生成失败
@@ -120,8 +130,8 @@ const LearnEnglish: React.FC = () => {
       const mastered = wordsData.filter((w) => w.progress?.status === 'mastered').length;
       setMasteredCount(mastered);
 
-      // 在后台开始生成30个AI词汇
-      generateMoreAIWords(30);
+      // 在后台开始生成20个AI词汇（分2批，每批10个）
+      generateMoreAIWords(20);
     } catch (error) {
       console.error('Error loading English learning data:', error);
       alert('加载数据失败，请稍后再试');
@@ -187,10 +197,10 @@ const LearnEnglish: React.FC = () => {
             // 更新消耗计数
             setAiWordsConsumed(prev => {
               const newConsumed = prev + 1;
-              // 如果消耗了15个AI词汇（一半），继续生成新的30个
-              if (newConsumed === 15) {
-                console.log('已消耗15个AI词汇，继续生成新的30个...');
-                generateMoreAIWords(30);
+              // 如果消耗了10个AI词汇（一半），继续生成新的20个
+              if (newConsumed === 10) {
+                console.log('已消耗10个AI词汇，继续生成新的20个...');
+                generateMoreAIWords(20);
               }
               return newConsumed;
             });

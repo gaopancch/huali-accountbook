@@ -459,59 +459,106 @@ export const getFavoriteWords = async (userId: string): Promise<WordWithProgress
  */
 export const generateAIWords = async (count: number): Promise<EnglishWord[]> => {
   try {
-    const prompt = `请生成${count}个适合英语学习的单词，按照以下JSON格式返回（请只返回JSON数组，不要其他文字）：
+    // 为了提高成功率，简化prompt并减少单次生成数量
+    const batchSize = Math.min(count, 10); // 每次最多生成10个
+    const prompt = `Generate ${batchSize} English words for learning. Return ONLY a valid JSON array, no other text.
+
+Format:
 [
   {
-    "word": "单词（英文）",
-    "phonetic": "音标（国际音标格式，例如：/həˈloʊ/）",
-    "definition": "定义（英文）",
-    "example": "例句（英文）",
-    "translation": "例句翻译（中文）",
-    "level": "等级（A1/A2/B1/B2/C1/C2）",
-    "category": "分类（日常用语/职场/旅行/餐饮等）"
+    "word": "hello",
+    "phonetic": "/həˈloʊ/",
+    "definition": "a greeting",
+    "example": "Hello, nice to meet you!",
+    "translation": "你好，很高兴见到你！",
+    "level": "A1",
+    "category": "日常用语"
   }
 ]
 
-要求：
-1. 单词应该是常用的、实用的英语单词
-2. 难度分布合理，包含不同等级（A1到C1）
-3. 分类多样，涵盖不同场景
-4. 例句要贴近实际生活
-5. 只返回JSON数组，不要包含其他解释文字`;
+Requirements:
+- Common, practical words
+- Mix of levels: A1, A2, B1, B2
+- Various categories: 日常用语, 职场, 旅行, 餐饮
+- Return ONLY the JSON array, nothing else`;
 
+    console.log(`Requesting AI to generate ${batchSize} words...`);
     const response = await cloudflareAI.sendMessage(prompt);
+    console.log('AI response received:', response.substring(0, 200) + '...');
 
     // 尝试解析AI返回的JSON
     let words: any[];
     try {
-      // 提取JSON部分（可能AI会在前后添加一些说明文字）
-      const jsonMatch = response.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        words = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('AI响应中未找到JSON数组');
+      // 先尝试直接解析
+      try {
+        words = JSON.parse(response.trim());
+        console.log('Direct JSON parse succeeded');
+      } catch (directError) {
+        // 如果直接解析失败，尝试提取JSON数组
+        console.log('Direct parse failed, trying to extract JSON array...');
+        const jsonMatch = response.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          words = JSON.parse(jsonMatch[0]);
+          console.log('JSON extraction succeeded');
+        } else {
+          console.error('No JSON array found in response:', response);
+          throw new Error('AI响应中未找到JSON数组');
+        }
       }
+
+      // 验证是否是数组
+      if (!Array.isArray(words)) {
+        throw new Error('AI返回的不是数组格式');
+      }
+
+      // 验证数组是否为空
+      if (words.length === 0) {
+        throw new Error('AI返回的数组为空');
+      }
+
+      console.log(`Successfully parsed ${words.length} words from AI response`);
     } catch (parseError) {
-      console.error('Failed to parse AI response:', response);
-      throw new Error('AI返回的数据格式不正确');
+      console.error('Failed to parse AI response:', parseError);
+      console.error('Raw response:', response);
+      throw new Error(`AI返回的数据格式不正确: ${parseError instanceof Error ? parseError.message : '未知错误'}`);
     }
 
-    // 转换为EnglishWord格式
-    const aiWords: EnglishWord[] = words.map((word, index) => ({
-      id: `ai-${Date.now()}-${index}`, // 使用临时ID
-      word: word.word || '',
-      phonetic: word.phonetic,
-      definition: word.definition || '',
-      example: word.example,
-      translation: word.translation,
-      level: word.level,
-      category: word.category,
-      createdAt: new Date(),
-    }));
+    // 转换为EnglishWord格式，添加容错处理
+    const aiWords = words
+      .map((word, index) => {
+        // 验证必需字段
+        if (!word.word || !word.definition) {
+          console.warn('Skipping invalid word:', word);
+          return null;
+        }
 
+        const englishWord: EnglishWord = {
+          id: `ai-${Date.now()}-${index}`, // 使用临时ID
+          word: word.word,
+          phonetic: word.phonetic || '',
+          definition: word.definition,
+          example: word.example || '',
+          translation: word.translation || '',
+          level: word.level || 'A1',
+          category: word.category || '日常用语',
+          createdAt: new Date(),
+        };
+        return englishWord;
+      })
+      .filter((word): word is EnglishWord => word !== null); // 过滤掉无效的单词
+
+    if (aiWords.length === 0) {
+      throw new Error('没有生成有效的单词');
+    }
+
+    console.log(`Successfully generated ${aiWords.length} valid words`);
     return aiWords;
   } catch (error) {
     console.error('Error generating AI words:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', error.message);
+      console.error('Error stack:', error.stack);
+    }
     throw error;
   }
 };
