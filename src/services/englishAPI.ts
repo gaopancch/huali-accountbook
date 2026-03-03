@@ -7,10 +7,11 @@ import {
   StudyStats,
   WordWithProgress,
 } from '../types/english';
+import * as cloudflareAI from './cloudflareAI';
 
 /**
- * 获取今日10个单词
- * 策略：排除用户已掌握的单词，随机选择10个未学习或正在学习的单词
+ * 获取今日5个固定的数据库单词
+ * 策略：从数据库中按等级顺序返回5个未掌握的单词
  */
 export const getTodayWords = async (userId: string): Promise<WordWithProgress[]> => {
   try {
@@ -37,7 +38,7 @@ export const getTodayWords = async (userId: string): Promise<WordWithProgress[]>
 
     const todayWordIds = todayProgressData?.map((item) => item.word_id) || [];
 
-    // 3. 如果今天已学习的单词不足10个，从单词库中随机选择新单词补充
+    // 3. 如果今天已学习的单词不足5个，从单词库中选择新单词补充
     let query = supabase
       .from('english_words')
       .select('*')
@@ -48,20 +49,17 @@ export const getTodayWords = async (userId: string): Promise<WordWithProgress[]>
       query = query.not('id', 'in', `(${masteredWordIds.join(',')})`);
     }
 
-    const { data: wordsData, error: wordsError } = await query.limit(100);
+    const { data: wordsData, error: wordsError } = await query.limit(50);
 
     if (wordsError) throw wordsError;
 
-    // 4. 优先返回今天已学习的单词，然后随机补充新单词
+    // 4. 优先返回今天已学习的单词，然后按顺序补充新单词
     const allWords = wordsData || [];
     const todayWords = allWords.filter((w) => todayWordIds.includes(w.id));
     const newWords = allWords.filter((w) => !todayWordIds.includes(w.id));
 
-    // 随机打乱新单词
-    const shuffledNewWords = newWords.sort(() => Math.random() - 0.5);
-
-    // 组合今天的单词和新单词，总共10个
-    const selectedWords = [...todayWords, ...shuffledNewWords].slice(0, 10);
+    // 组合今天的单词和新单词，总共5个
+    const selectedWords = [...todayWords, ...newWords].slice(0, 5);
 
     // 5. 获取这些单词的学习进度
     const { data: progressData, error: progressError } = await supabase
@@ -450,6 +448,70 @@ export const getFavoriteWords = async (userId: string): Promise<WordWithProgress
     return wordsWithProgress;
   } catch (error) {
     console.error('Error getting favorite words:', error);
+    throw error;
+  }
+};
+
+/**
+ * 使用AI生成指定数量的英语单词
+ * @param count 要生成的单词数量
+ * @returns 生成的单词列表（不包含progress信息）
+ */
+export const generateAIWords = async (count: number): Promise<EnglishWord[]> => {
+  try {
+    const prompt = `请生成${count}个适合英语学习的单词，按照以下JSON格式返回（请只返回JSON数组，不要其他文字）：
+[
+  {
+    "word": "单词（英文）",
+    "phonetic": "音标（国际音标格式，例如：/həˈloʊ/）",
+    "definition": "定义（英文）",
+    "example": "例句（英文）",
+    "translation": "例句翻译（中文）",
+    "level": "等级（A1/A2/B1/B2/C1/C2）",
+    "category": "分类（日常用语/职场/旅行/餐饮等）"
+  }
+]
+
+要求：
+1. 单词应该是常用的、实用的英语单词
+2. 难度分布合理，包含不同等级（A1到C1）
+3. 分类多样，涵盖不同场景
+4. 例句要贴近实际生活
+5. 只返回JSON数组，不要包含其他解释文字`;
+
+    const response = await cloudflareAI.sendMessage(prompt);
+
+    // 尝试解析AI返回的JSON
+    let words: any[];
+    try {
+      // 提取JSON部分（可能AI会在前后添加一些说明文字）
+      const jsonMatch = response.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        words = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error('AI响应中未找到JSON数组');
+      }
+    } catch (parseError) {
+      console.error('Failed to parse AI response:', response);
+      throw new Error('AI返回的数据格式不正确');
+    }
+
+    // 转换为EnglishWord格式
+    const aiWords: EnglishWord[] = words.map((word, index) => ({
+      id: `ai-${Date.now()}-${index}`, // 使用临时ID
+      word: word.word || '',
+      phonetic: word.phonetic,
+      definition: word.definition || '',
+      example: word.example,
+      translation: word.translation,
+      level: word.level,
+      category: word.category,
+      createdAt: new Date(),
+    }));
+
+    return aiWords;
+  } catch (error) {
+    console.error('Error generating AI words:', error);
     throw error;
   }
 };

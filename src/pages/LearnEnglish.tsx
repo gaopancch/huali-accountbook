@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -7,8 +7,9 @@ import {
   markWordAsMastered,
   toggleWordFavorite,
   getStudyStats,
+  generateAIWords,
 } from '../services/englishAPI';
-import { WordWithProgress, DailySentence, StudyStats } from '../types/english';
+import { WordWithProgress, DailySentence, StudyStats, EnglishWord } from '../types/english';
 import WordCard from '../components/english/WordCard';
 import DailySentenceComponent from '../components/english/DailySentence';
 import LearningStats from '../components/english/LearningStats';
@@ -27,10 +28,38 @@ const LearnEnglish: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [masteredCount, setMasteredCount] = useState(0);
 
+  // AI词汇相关状态
+  const [aiWords, setAiWords] = useState<EnglishWord[]>([]); // AI生成的词汇列表
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false); // 是否正在生成AI词汇
+  const [aiWordsConsumed, setAiWordsConsumed] = useState(0); // 已消耗的AI词汇数量
+  const isGeneratingRef = useRef(false); // 用于防止重复生成
+
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
+
+  // 生成AI词汇的函数
+  const generateMoreAIWords = async (count: number) => {
+    if (isGeneratingRef.current) return; // 防止重复生成
+
+    try {
+      isGeneratingRef.current = true;
+      setIsGeneratingAI(true);
+      console.log(`开始生成${count}个AI词汇...`);
+
+      const newAIWords = await generateAIWords(count);
+      console.log(`成功生成${newAIWords.length}个AI词汇`);
+
+      setAiWords(prev => [...prev, ...newAIWords]);
+    } catch (error) {
+      console.error('生成AI词汇失败:', error);
+      // 如果生成失败，可以选择重试或提示用户
+    } finally {
+      setIsGeneratingAI(false);
+      isGeneratingRef.current = false;
+    }
+  };
 
   const loadData = async () => {
     if (!currentUser) return;
@@ -40,7 +69,7 @@ const LearnEnglish: React.FC = () => {
 
       // 并行加载所有数据
       const [wordsData, sentenceData, statsData] = await Promise.all([
-        getTodayWords(currentUser.uid),
+        getTodayWords(currentUser.uid), // 获取5个数据库单词
         getTodaySentence(),
         getStudyStats(currentUser.uid),
       ]);
@@ -52,6 +81,9 @@ const LearnEnglish: React.FC = () => {
       // 计算已掌握的单词数
       const mastered = wordsData.filter((w) => w.progress?.status === 'mastered').length;
       setMasteredCount(mastered);
+
+      // 在后台开始生成30个AI词汇
+      generateMoreAIWords(30);
     } catch (error) {
       console.error('Error loading English learning data:', error);
       alert('加载数据失败，请稍后再试');
@@ -64,36 +96,78 @@ const LearnEnglish: React.FC = () => {
     if (!currentUser) return;
 
     try {
-      await markWordAsMastered(currentUser.uid, wordId);
+      // 判断是否是AI生成的单词（AI单词的ID以"ai-"开头）
+      const isAIWord = wordId.startsWith('ai-');
 
-      // 更新本地状态
-      setWords((prevWords) =>
-        prevWords.map((word) =>
+      if (!isAIWord) {
+        // 数据库单词，需要更新数据库
+        await markWordAsMastered(currentUser.uid, wordId);
+      }
+
+      // 更新本地状态并获取更新后的状态
+      setWords((prevWords) => {
+        const updatedWords = prevWords.map((word) =>
           word.id === wordId
             ? {
                 ...word,
                 progress: {
                   ...word.progress!,
-                  status: 'mastered',
+                  status: 'mastered' as 'mastered',
                   reviewCount: (word.progress?.reviewCount || 0) + 1,
                   updatedAt: new Date(),
                 },
               }
             : word
-        )
-      );
+        );
+
+        // 在状态更新后检查是否需要添加新词汇
+        const databaseWords = updatedWords.filter(w => !w.id.startsWith('ai-'));
+        const masteredDatabaseWords = databaseWords.filter(w => w.progress?.status === 'mastered');
+
+        // 如果已经掌握了所有5个数据库单词，开始添加AI词汇
+        if (masteredDatabaseWords.length >= 5 && aiWords.length > aiWordsConsumed) {
+          const nextAIWord = aiWords[aiWordsConsumed];
+          if (nextAIWord) {
+            // 将AI单词转换为WordWithProgress格式
+            const aiWordWithProgress: WordWithProgress = {
+              ...nextAIWord,
+              progress: {
+                id: `progress-${nextAIWord.id}`,
+                userId: currentUser.uid,
+                wordId: nextAIWord.id,
+                status: 'learning' as 'learning',
+                isFavorite: false,
+                learnedDate: new Date(),
+                reviewCount: 0,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              },
+            };
+
+            // 更新消耗计数
+            setAiWordsConsumed(prev => {
+              const newConsumed = prev + 1;
+              // 如果消耗了15个AI词汇（一半），继续生成新的30个
+              if (newConsumed === 15) {
+                console.log('已消耗15个AI词汇，继续生成新的30个...');
+                generateMoreAIWords(30);
+              }
+              return newConsumed;
+            });
+
+            return [...updatedWords, aiWordWithProgress];
+          }
+        }
+
+        return updatedWords;
+      });
 
       setMasteredCount((prev) => prev + 1);
 
-      // 重新加载统计数据
-      const statsData = await getStudyStats(currentUser.uid);
-      setStats(statsData);
-
-      // 检查是否完成所有单词
-      if (masteredCount + 1 === words.length) {
-        setTimeout(() => {
-          alert('🎉 恭喜！你已经掌握了今天的所有单词！');
-        }, 300);
+      // 重新加载统计数据（仅对数据库单词）
+      if (!isAIWord) {
+        const statsData = await getStudyStats(currentUser.uid);
+        setStats(statsData);
       }
     } catch (error) {
       console.error('Error marking word as mastered:', error);
@@ -105,7 +179,13 @@ const LearnEnglish: React.FC = () => {
     if (!currentUser) return;
 
     try {
-      await toggleWordFavorite(currentUser.uid, wordId, isFavorite);
+      // 判断是否是AI生成的单词
+      const isAIWord = wordId.startsWith('ai-');
+
+      if (!isAIWord) {
+        // 数据库单词，需要更新数据库
+        await toggleWordFavorite(currentUser.uid, wordId, isFavorite);
+      }
 
       // 更新本地状态
       setWords((prevWords) =>
@@ -129,9 +209,11 @@ const LearnEnglish: React.FC = () => {
         )
       );
 
-      // 重新加载统计数据
-      const statsData = await getStudyStats(currentUser.uid);
-      setStats(statsData);
+      // 重新加载统计数据（仅对数据库单词）
+      if (!isAIWord) {
+        const statsData = await getStudyStats(currentUser.uid);
+        setStats(statsData);
+      }
     } catch (error) {
       console.error('Error toggling word favorite:', error);
       alert('操作失败，请稍后再试');
@@ -233,6 +315,21 @@ const LearnEnglish: React.FC = () => {
                   }}
                 />
               </div>
+              {/* AI词汇生成状态提示 */}
+              {isGeneratingAI && (
+                <div className="mt-2 text-xs text-gray-500 flex items-center">
+                  <svg className="animate-spin h-3 w-3 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  AI正在生成更多词汇...
+                </div>
+              )}
+              {!isGeneratingAI && aiWords.length > 0 && (
+                <div className="mt-2 text-xs text-green-600">
+                  已准备 {aiWords.length - aiWordsConsumed} 个AI词汇
+                </div>
+              )}
             </div>
 
             {/* 单词卡片列表 */}
