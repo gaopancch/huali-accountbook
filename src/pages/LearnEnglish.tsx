@@ -39,6 +39,42 @@ const LearnEnglish: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
 
+  // 监听AI词汇生成完成，自动添加到学习列表
+  useEffect(() => {
+    if (!currentUser || aiWords.length === 0 || isGeneratingAI) return;
+
+    // 检查是否所有数据库单词都已掌握
+    const databaseWords = words.filter(w => !w.id.startsWith('ai-'));
+    const masteredDatabaseWords = databaseWords.filter(w => w.progress?.status === 'mastered');
+
+    // 如果已经掌握了所有5个数据库单词，且还没有添加AI词汇
+    if (masteredDatabaseWords.length >= 5 && aiWordsConsumed === 0) {
+      console.log('数据库单词已全部掌握，开始添加AI词汇到学习列表');
+
+      // 添加第一个AI词汇
+      const firstAIWord = aiWords[0];
+      if (firstAIWord) {
+        const aiWordWithProgress: WordWithProgress = {
+          ...firstAIWord,
+          progress: {
+            id: `progress-${firstAIWord.id}`,
+            userId: currentUser.uid,
+            wordId: firstAIWord.id,
+            status: 'learning' as 'learning',
+            isFavorite: false,
+            learnedDate: new Date(),
+            reviewCount: 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        };
+
+        setWords(prev => [...prev, aiWordWithProgress]);
+        setAiWordsConsumed(1);
+      }
+    }
+  }, [aiWords, isGeneratingAI, words, aiWordsConsumed, currentUser]);
+
   // 生成AI词汇的函数
   const generateMoreAIWords = async (count: number) => {
     if (isGeneratingRef.current) return; // 防止重复生成
@@ -124,10 +160,12 @@ const LearnEnglish: React.FC = () => {
         const databaseWords = updatedWords.filter(w => !w.id.startsWith('ai-'));
         const masteredDatabaseWords = databaseWords.filter(w => w.progress?.status === 'mastered');
 
-        // 如果已经掌握了所有5个数据库单词，开始添加AI词汇
+        // 如果已经掌握了所有5个数据库单词，且有可用的AI词汇，添加下一个AI词汇
         if (masteredDatabaseWords.length >= 5 && aiWords.length > aiWordsConsumed) {
           const nextAIWord = aiWords[aiWordsConsumed];
           if (nextAIWord) {
+            console.log(`添加第${aiWordsConsumed + 1}个AI词汇到学习列表`);
+
             // 将AI单词转换为WordWithProgress格式
             const aiWordWithProgress: WordWithProgress = {
               ...nextAIWord,
@@ -343,6 +381,19 @@ const LearnEnglish: React.FC = () => {
                     onToggleFavorite={handleToggleFavorite}
                   />
                 ))}
+              </div>
+            ) : isGeneratingAI || (aiWords.length === 0 && words.filter(w => !w.id.startsWith('ai-')).filter(w => w.progress?.status === 'mastered').length >= 5) ? (
+              // AI正在生成或者数据库单词已学完但AI词汇还没准备好
+              <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
+                <div className="text-6xl mb-4">⏳</div>
+                <h3 className="text-2xl font-bold text-gray-800 mb-2">请稍候...</h3>
+                <p className="text-gray-600 mb-4">AI正在为你生成新的学习词汇</p>
+                <div className="flex justify-center">
+                  <svg className="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                </div>
               </div>
             ) : (
               <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
