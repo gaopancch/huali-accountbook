@@ -24,13 +24,11 @@ const Home: React.FC = function() {
   // Calculate totals
   var now = new Date();
   var year = now.getFullYear();
-  var month = now.getMonth() + 1;
-  var monthStr = month < 10 ? '0' + month : '' + month;
-  var currentMonth = year + '-' + monthStr;
+  var currentYear = String(year);
 
-  var monthRecords = records.filter(function(r) { return r.date.indexOf(currentMonth) === 0; });
-  var income = monthRecords.filter(function(r) { return r.type === 'income'; }).reduce(function(sum, r) { return sum + r.amount; }, 0);
-  var expense = monthRecords.filter(function(r) { return r.type === 'expense'; }).reduce(function(sum, r) { return sum + r.amount; }, 0);
+  var yearRecords = records.filter(function(r) { return r.date.indexOf(currentYear) === 0; });
+  var income = yearRecords.filter(function(r) { return r.type === 'income'; }).reduce(function(sum, r) { return sum + r.amount; }, 0);
+  var expense = yearRecords.filter(function(r) { return r.type === 'expense'; }).reduce(function(sum, r) { return sum + r.amount; }, 0);
   var balance = income - expense;
 
   useEffect(function() {
@@ -161,7 +159,7 @@ const Home: React.FC = function() {
         <div className="bg-white bg-opacity-20 rounded-2xl p-4">
           <div className="flex justify-between items-center mb-2">
             <span>{currentBook ? currentBook.name : '默认账本'}</span>
-            <span>{new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' })}</span>
+            <span>{new Date().toLocaleDateString('zh-CN', { year: 'numeric' })}</span>
           </div>
 
           <div className="grid grid-cols-3 gap-4 mt-4">
